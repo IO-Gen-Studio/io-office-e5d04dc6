@@ -185,6 +185,7 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [planOpts, setPlanOpts] = useState<PlanOpt[]>([]);
+  const [projects, setProjects] = useState<LinkedProject[]>([]);
   const [openEdit, setOpenEdit] = useState(false);
   const [customLabel, setCustomLabel] = useState("");
   const seededRef = useRef<Set<string>>(new Set());
@@ -193,14 +194,16 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
   const statusLabel = useBuiltinFieldLabel("subscriptions", "status");
 
   const load = async () => {
-    const [{ data: m }, { data: o }, { data: c }, { data: p }, { data: fresh }] = await Promise.all([
+    const [{ data: m }, { data: o }, { data: c }, { data: p }, { data: fresh }, { data: pj }] = await Promise.all([
       supabase.from("milestones").select("*").eq("parent_id", sub.id).eq("parent_type", "subscription").order("position"),
       supabase.from("organisations").select("id,name").order("name"),
       supabase.from("contacts").select("id,first_name,last_name,organisation_id").order("last_name"),
       supabase.from("subscription_plan_options").select("*").order("position"),
       supabase.from("subscriptions").select("*").eq("id", sub.id).single(),
+      supabase.from("projects").select("id,title,type").order("title"),
     ]);
     setPlanOpts((p ?? []) as PlanOpt[]);
+    setProjects((pj ?? []) as LinkedProject[]);
     let ms = (m ?? []) as Milestone[];
     if (ms.length === 0 && !seededRef.current.has(sub.id)) {
       seededRef.current.add(sub.id);
