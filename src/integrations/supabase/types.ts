@@ -1388,6 +1388,7 @@ export type Database = {
           description: string | null
           id: string
           plan_name: string
+          project_id: string | null
           renewal_date: string | null
           status: Database["public"]["Enums"]["subscription_status"]
           tenant_id: string
@@ -1404,6 +1405,7 @@ export type Database = {
           description?: string | null
           id?: string
           plan_name: string
+          project_id?: string | null
           renewal_date?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
           tenant_id?: string
@@ -1420,6 +1422,7 @@ export type Database = {
           description?: string | null
           id?: string
           plan_name?: string
+          project_id?: string | null
           renewal_date?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
           tenant_id?: string
@@ -1438,6 +1441,13 @@ export type Database = {
             columns: ["client_org_id"]
             isOneToOne: false
             referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
