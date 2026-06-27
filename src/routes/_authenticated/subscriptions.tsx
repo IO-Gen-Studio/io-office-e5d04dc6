@@ -32,8 +32,10 @@ type Sub = {
   id: string; plan_name: string; cost: number; billing_cycle: string;
   renewal_date: string | null; status: SStatus; client_org_id: string | null; client_contact_id: string | null;
   description: string | null;
+  project_id: string | null;
   custom: Record<string, unknown> | null;
 };
+type LinkedProject = { id: string; title: string; type: string };
 type Org = { id: string; name: string };
 type Contact = { id: string; first_name: string; last_name: string; organisation_id: string | null };
 type Milestone = { id: string; parent_id: string; parent_type: string; label: string; due_date: string | null; completed_at: string | null; is_custom: boolean; position: number };
