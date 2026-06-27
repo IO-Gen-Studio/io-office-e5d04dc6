@@ -175,7 +175,7 @@ function SubList({ editable, onOpen }: { editable: boolean; onOpen: (s: Sub) => 
         </CardContent>
       </Card>
 
-      <SubDialog open={open} onOpenChange={setOpen} sub={null} orgs={orgs} contacts={contacts} planOpts={planOpts} onSaved={load} />
+      <SubDialog open={open} onOpenChange={setOpen} sub={null} orgs={orgs} contacts={contacts} planOpts={planOpts} projects={projects} onSaved={load} />
     </>
   );
 }
