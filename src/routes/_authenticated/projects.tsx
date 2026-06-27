@@ -353,6 +353,24 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
                   void load();
                 }}
               />
+              {linkedSubs.length > 0 && (
+                <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">Linked subscription{linkedSubs.length > 1 ? "s" : ""}</p>
+                    <span className="text-xs text-muted-foreground">Reference only — not included in project totals</span>
+                  </div>
+                  <ul className="text-sm space-y-1">
+                    {linkedSubs.map((s) => (
+                      <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="font-medium">{s.plan_name}</span>
+                        <span className="text-muted-foreground">{s.billing_cycle}</span>
+                        <span>{formatGBP(s.cost)}</span>
+                        {s.renewal_date && <span className="text-muted-foreground">renews {formatDateUK(s.renewal_date)}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </CollapsibleContent>
           </CardContent>
         </Card>
