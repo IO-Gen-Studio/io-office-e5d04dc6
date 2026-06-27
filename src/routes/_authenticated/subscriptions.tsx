@@ -32,8 +32,10 @@ type Sub = {
   id: string; plan_name: string; cost: number; billing_cycle: string;
   renewal_date: string | null; status: SStatus; client_org_id: string | null; client_contact_id: string | null;
   description: string | null;
+  project_id: string | null;
   custom: Record<string, unknown> | null;
 };
+type LinkedProject = { id: string; title: string; type: string };
 type Org = { id: string; name: string };
 type Contact = { id: string; first_name: string; last_name: string; organisation_id: string | null };
 type Milestone = { id: string; parent_id: string; parent_type: string; label: string; due_date: string | null; completed_at: string | null; is_custom: boolean; position: number };
@@ -66,17 +68,20 @@ function SubList({ editable, onOpen }: { editable: boolean; onOpen: (s: Sub) => 
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [planOpts, setPlanOpts] = useState<PlanOpt[]>([]);
+  const [projects, setProjects] = useState<LinkedProject[]>([]);
   const [open, setOpen] = useState(false);
 
   const load = async () => {
-    const [{ data: s }, { data: o }, { data: c }, { data: p }] = await Promise.all([
+    const [{ data: s }, { data: o }, { data: c }, { data: p }, { data: pj }] = await Promise.all([
       supabase.from("subscriptions").select("*").order("renewal_date", { ascending: true, nullsFirst: false }),
       supabase.from("organisations").select("id,name").order("name"),
       supabase.from("contacts").select("id,first_name,last_name,organisation_id").order("last_name"),
       supabase.from("subscription_plan_options").select("*").order("position"),
+      supabase.from("projects").select("id,title,type").order("title"),
     ]);
     setRows((s ?? []) as Sub[]); setOrgs((o ?? []) as Org[]); setContacts((c ?? []) as Contact[]);
     setPlanOpts((p ?? []) as PlanOpt[]);
+    setProjects((pj ?? []) as LinkedProject[]);
   };
   useEffect(() => { void load(); }, []);
 
@@ -170,7 +175,7 @@ function SubList({ editable, onOpen }: { editable: boolean; onOpen: (s: Sub) => 
         </CardContent>
       </Card>
 
-      <SubDialog open={open} onOpenChange={setOpen} sub={null} orgs={orgs} contacts={contacts} planOpts={planOpts} onSaved={load} />
+      <SubDialog open={open} onOpenChange={setOpen} sub={null} orgs={orgs} contacts={contacts} planOpts={planOpts} projects={projects} onSaved={load} />
     </>
   );
 }
@@ -180,6 +185,7 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [planOpts, setPlanOpts] = useState<PlanOpt[]>([]);
+  const [projects, setProjects] = useState<LinkedProject[]>([]);
   const [openEdit, setOpenEdit] = useState(false);
   const [customLabel, setCustomLabel] = useState("");
   const seededRef = useRef<Set<string>>(new Set());
@@ -188,14 +194,16 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
   const statusLabel = useBuiltinFieldLabel("subscriptions", "status");
 
   const load = async () => {
-    const [{ data: m }, { data: o }, { data: c }, { data: p }, { data: fresh }] = await Promise.all([
+    const [{ data: m }, { data: o }, { data: c }, { data: p }, { data: fresh }, { data: pj }] = await Promise.all([
       supabase.from("milestones").select("*").eq("parent_id", sub.id).eq("parent_type", "subscription").order("position"),
       supabase.from("organisations").select("id,name").order("name"),
       supabase.from("contacts").select("id,first_name,last_name,organisation_id").order("last_name"),
       supabase.from("subscription_plan_options").select("*").order("position"),
       supabase.from("subscriptions").select("*").eq("id", sub.id).single(),
+      supabase.from("projects").select("id,title,type").order("title"),
     ]);
     setPlanOpts((p ?? []) as PlanOpt[]);
+    setProjects((pj ?? []) as LinkedProject[]);
     let ms = (m ?? []) as Milestone[];
     if (ms.length === 0 && !seededRef.current.has(sub.id)) {
       seededRef.current.add(sub.id);
@@ -263,6 +271,20 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
           onClick={async () => {
             try {
               const items = await fetchCostItems("subscription", sub.id);
+              const linkedProject = sub.project_id ? projects.find((p) => p.id === sub.project_id) : null;
+              let extraSection;
+              if (linkedProject) {
+                const include = window.confirm(
+                  `Include the linked ${linkedProject.type === "work" ? "work" : "project"} "${linkedProject.title}" in this Cost Proposal?\n\nOK = include both. Cancel = subscription only.`
+                );
+                if (include) {
+                  const projectItems = await fetchCostItems("project", linkedProject.id);
+                  extraSection = {
+                    heading: `${linkedProject.type === "work" ? "Work" : "Project"} — ${linkedProject.title}`,
+                    items: projectItems,
+                  };
+                }
+              }
               await generateCostProposalPdf({
                 kind: "subscription",
                 clientName: orgs.find((o) => o.id === sub.client_org_id)?.name,
@@ -270,6 +292,7 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
                 description: sub.description,
                 renewalDate: sub.renewal_date,
                 items,
+                extraSection,
               });
             } catch (e) { toast.error((e as Error).message); }
           }}
@@ -291,6 +314,7 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
             <Info label="Contact" value={(() => { const c = contacts.find((x) => x.id === sub.client_contact_id); return c ? `${c.first_name} ${c.last_name}` : "—"; })()} />
             <Info label="Status" value={statusLabel(sub.status)} />
             <Info label="Renewal date" value={formatDateUK(sub.renewal_date) || "—"} />
+            <Info label="Linked project / work" value={(() => { const p = projects.find((x) => x.id === sub.project_id); return p ? `${p.title} (${p.type === "work" ? "Work" : "Project"})` : "—"; })()} />
           </div>
           {sub.description && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{sub.description}</p>}
           <CustomFieldDisplay module="subscriptions" value={sub.custom} />
@@ -388,7 +412,7 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
         </CardContent>
       </Card>
 
-      <SubDialog open={openEdit} onOpenChange={setOpenEdit} sub={sub} orgs={orgs} contacts={contacts} planOpts={planOpts} onSaved={load} />
+      <SubDialog open={openEdit} onOpenChange={setOpenEdit} sub={sub} orgs={orgs} contacts={contacts} planOpts={planOpts} projects={projects} onSaved={load} />
     </div>
   );
 }
@@ -408,14 +432,15 @@ function Info({ label, value }: { label: string; value: string }) {
   return <div><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{value}</span></div>;
 }
 
-function SubDialog({ open, onOpenChange, sub, orgs, contacts, planOpts, onSaved }: {
-  open: boolean; onOpenChange: (o: boolean) => void; sub: Sub | null; orgs: Org[]; contacts: Contact[]; planOpts: PlanOpt[]; onSaved: () => void;
+function SubDialog({ open, onOpenChange, sub, orgs, contacts, planOpts, projects, onSaved }: {
+  open: boolean; onOpenChange: (o: boolean) => void; sub: Sub | null; orgs: Org[]; contacts: Contact[]; planOpts: PlanOpt[]; projects: LinkedProject[]; onSaved: () => void;
 }) {
   const [plan, setPlan] = useState(""); const [cost, setCost] = useState("0");
   const [cycle, setCycle] = useState("monthly");
   const [renewal, setRenewal] = useState(""); const [status, setStatus] = useState<SStatus>("active");
   const [org, setOrg] = useState<string>("__none__"); const [contact, setContact] = useState<string>("__none__");
   const [description, setDescription] = useState("");
+  const [projectId, setProjectId] = useState<string>("__none__");
   const [customVals, setCustomVals] = useState<Record<string, unknown>>({});
   const [localOrgs, setLocalOrgs] = useState<Org[]>(orgs);
   const [localContacts, setLocalContacts] = useState<Contact[]>(contacts);
@@ -434,6 +459,7 @@ function SubDialog({ open, onOpenChange, sub, orgs, contacts, planOpts, onSaved 
     setStatus(sub?.status ?? "active");
     setOrg(sub?.client_org_id ?? "__none__"); setContact(sub?.client_contact_id ?? "__none__");
     setDescription(sub?.description ?? "");
+    setProjectId(sub?.project_id ?? "__none__");
     setCustomVals((sub?.custom ?? {}) as Record<string, unknown>);
   }, [sub, open]);
 
@@ -445,6 +471,7 @@ function SubDialog({ open, onOpenChange, sub, orgs, contacts, planOpts, onSaved 
       client_org_id: org === "__none__" ? null : org,
       client_contact_id: contact === "__none__" ? null : contact,
       description: description || null,
+      project_id: projectId === "__none__" ? null : projectId,
       custom: customVals as never,
     };
     if (sub) {
@@ -556,6 +583,17 @@ function SubDialog({ open, onOpenChange, sub, orgs, contacts, planOpts, onSaved 
                 <Plus className="size-3 mr-1" /> New contact
               </Button>
             </div>
+          </div>
+          <div className="space-y-1">
+            <Label>Linked project / work</Label>
+            <Select value={projectId} onValueChange={setProjectId}>
+              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None</SelectItem>
+                {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.title} ({p.type === "work" ? "Work" : "Project"})</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Optional. Shown on the project's Cost Breakdown as a reference (not summed into project totals).</p>
           </div>
           <CustomFieldValues module="subscriptions" value={customVals} onChange={setCustomVals} />
         </div>

@@ -1,53 +1,35 @@
 ## Goal
 
-Let any user export a Cost Proposal PDF from an individual project, work, or subscription. The output overlays text on an admin-configurable background template PDF (defaulting to the supplied IO-Gen template), and uses admin-editable conditions per type.
+Let a Project/Work optionally be linked to a Subscription so the subscription appears as an extra "good to know" line in the project's Cost Breakdown, and printing the Cost Proposal asks whether to include it. Same the other way round for Subscriptions referencing their Project. No automatic double-counting in totals.
 
-## What gets printed (matches the sample)
+## Database (one migration)
 
-- Print date (today)
-- `<Client name> - <Project/Work title OR Subscription plan name>`
-- Description
-- Cost breakdown table from current cost version (Item No., Description, Quantity, Cost ex. VAT) — using the same items already shown on the page - make sure not to print investment cost and profit.
-- **Subscriptions only**: `Renewal due: <renewal_date>`
-- Conditions list (per-type, admin-editable)
+Add `subscriptions.project_id uuid null` referencing `public.projects(id) on delete set null`, plus an index. RLS already covers subscriptions by tenant, so no policy changes; existing GRANTs stay.
 
-## Database changes (one migration)
+## Subscription form / detail
 
-1. `subscriptions.description text` — new nullable column.
-2. New table `public.cost_proposal_settings` (per tenant):
-  - `tenant_id uuid PK` (FK → tenants, one row per tenant)
-  - `template_path text` — storage path in `project-files` bucket (nullable, falls back to default bundled template)
-  - `conditions_project text[]`, `conditions_work text[]`, `conditions_subscription text[]` (defaults seeded with the 3 bullets from the sample)
-  - Standard `updated_at`, plus GRANTs and RLS: read for tenant members, write for tenant admins / super admins.
-3. Storage: reuse existing `project-files` bucket; templates stored under `<tenant_id>/cost-proposal-template/template.pdf`.
+- Add a "Linked Project / Work" selector on the Subscription create+edit form (searchable dropdown of projects in the current tenant, with a "None" option). Persists to `subscriptions.project_id`.
+- Show the linked project name (with a link) on the subscription detail view.
 
-## Backend
+## Project & Works — Cost Breakdown
 
-No new server functions needed — all reads/writes go through the standard Supabase client under existing RLS. PDF is generated in the browser.
+In `src/components/CostBreakdown.tsx` (or the section that renders it inside `projects.tsx`):
 
-## Frontend
+- Below the existing project cost items, when one or more subscriptions are linked to this project, render a clearly-separated "Linked subscription" block listing each subscription with: plan name, billing cycle, cost, renewal date. Styled as informational (muted background, "Not included in totals" hint). Linked to the subscription detail.
+- The project's existing total stays unchanged — subscription rows do NOT contribute to the project cost total. No double counting.
 
-1. **New util** `src/lib/cost-proposal-pdf.ts`
-  - Uses `pdf-lib` to load the tenant's template PDF (or the default bundled one) and draws the dynamic content on page 1 (date, header line, description, items table, renewal line, Conditions heading + bullets) in positions matching the sample.
-  - Triggers a browser download `Cost Proposal - <client> - <title>.pdf`.
-  - If content overflows page 1, append new blank pages using the template's first page as background.
-2. **Default template asset**: copy uploaded `Cost_Proposal_Template.pdf` into `src/assets/cost-proposal-template.pdf` and import it as the fallback.
-3. **"Export PDF" button** added to:
-  - Project/Work detail page (`src/routes/_authenticated/projects.tsx`)
-  - Subscription detail page (`src/routes/_authenticated/subscriptions.tsx`)
-   Button is visible to anyone who can view the record.
-4. **Subscriptions form**: add a `Description` textarea bound to the new column. Display it on the detail view.
-5. **Settings page** `src/routes/_authenticated/settings.cost-proposal.tsx` (admin / super-admin only, linked from settings nav):
-  - Upload / replace template PDF (preview current file name + download link).
-  - Three editable lists of conditions (Projects / Works / Subscriptions), add/remove/reorder rows.
-  - Save persists to `cost_proposal_settings`.
+## Cost Proposal printing
 
-## Dependencies
+When the user clicks "Export PDF" on either side:
 
-- `bun add pdf-lib`
+- If the record has a counterpart link (project has linked subscription(s), or subscription has a linked project), open a small confirm dialog: "Include the linked {subscription / project & works} in this Cost Proposal?" with Yes / No / Cancel.
+- If Yes: build a combined PDF — keep one items table per source, each under its own sub-heading ("Project & Works" / "Subscription — <plan name>"), with a per-section subtotal and a single Grand Total = sum of both (no row counted twice; subscription items come from the subscription's own current cost version, project items from the project's). Include the "Renewal due" line for the subscription section.
+- If No: behaviour is unchanged — only the originating record is printed.
+- Update `src/lib/cost-proposal-pdf.ts` to accept an optional second `items` block + section headings, render two tables when present, and compute totals per section + grand total.
+- Update the Export buttons in `projects.tsx` and `subscriptions.tsx` to fetch the linked record's items when the user confirms Yes, then call the updated generator.
 
 ## Out of scope
 
-- Server-side PDF rendering / emailing the PDF.
-- Multi-page logic beyond the simple overflow handling described above.
-- Editing template visual design from inside the app (admin uploads a new PDF instead).
+- Linking a project to multiple subscriptions for printing (we include all linked subscriptions if the user confirms Yes).
+- Reordering / editing the merged PDF layout beyond the two-section structure.
+- Any change to how costs are stored or rolled up elsewhere in the app.

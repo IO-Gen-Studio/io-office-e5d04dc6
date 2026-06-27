@@ -43,6 +43,7 @@ type Org = { id: string; name: string };
 type Contact = { id: string; first_name: string; last_name: string; organisation_id: string | null };
 type Milestone = { id: string; parent_id: string; parent_type: string; label: string; due_date: string | null; completed_at: string | null; is_custom: boolean; position: number };
 type MTemplate = { id: string; label: string; position: number; module: string; project_type: string | null };
+type LinkedSub = { id: string; plan_name: string; billing_cycle: string; cost: number; renewal_date: string | null; status: string };
 
 export const Route = createFileRoute("/_authenticated/projects")({ component: ProjectsPage });
 
@@ -212,19 +213,22 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [linkedSubs, setLinkedSubs] = useState<LinkedSub[]>([]);
   const [openEdit, setOpenEdit] = useState(false);
   const [customLabel, setCustomLabel] = useState("");
 
   const load = async () => {
-    const [{ data: m }, { data: o }, { data: pr }, { data: c }, { data: fresh }] = await Promise.all([
+    const [{ data: m }, { data: o }, { data: pr }, { data: c }, { data: fresh }, { data: subs }] = await Promise.all([
       supabase.from("milestones").select("*").eq("parent_id", project.id).eq("parent_type", "project").order("position"),
       supabase.from("organisations").select("id,name").order("name"),
       supabase.from("profiles").select("id,full_name").order("full_name"),
       supabase.from("contacts").select("id,first_name,last_name,organisation_id").order("last_name"),
       supabase.from("projects").select("*").eq("id", project.id).single(),
+      supabase.from("subscriptions").select("id,plan_name,billing_cycle,cost,renewal_date,status").eq("project_id", project.id).order("plan_name"),
     ]);
     setMilestones((m ?? []) as Milestone[]);
     setOrgs((o ?? []) as Org[]); setProfiles((pr ?? []) as Profile[]); setContacts((c ?? []) as Contact[]);
+    setLinkedSubs((subs ?? []) as LinkedSub[]);
     if (fresh) onSaved(fresh as Project);
   };
   useEffect(() => { void load(); }, [project.id]);
@@ -274,12 +278,34 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
           onClick={async () => {
             try {
               const items = await fetchCostItems("project", project.id);
+              let extraSection;
+              if (linkedSubs.length > 0) {
+                const names = linkedSubs.map((s) => `"${s.plan_name}"`).join(", ");
+                const include = window.confirm(
+                  `Include the linked subscription${linkedSubs.length > 1 ? "s" : ""} ${names} in this Cost Proposal?\n\nOK = include both. Cancel = project only.`
+                );
+                if (include) {
+                  const allItems = [] as Awaited<ReturnType<typeof fetchCostItems>>;
+                  for (const s of linkedSubs) {
+                    const its = await fetchCostItems("subscription", s.id);
+                    allItems.push(...its);
+                  }
+                  extraSection = {
+                    heading: linkedSubs.length === 1
+                      ? `Subscription — ${linkedSubs[0].plan_name}`
+                      : "Linked subscriptions",
+                    items: allItems,
+                    renewalDate: linkedSubs.length === 1 ? linkedSubs[0].renewal_date : null,
+                  };
+                }
+              }
               await generateCostProposalPdf({
                 kind: project.type === "work" ? "work" : "project",
                 clientName: orgs.find((o) => o.id === project.client_org_id)?.name,
                 title: project.title,
                 description: project.description,
                 items,
+                extraSection,
               });
             } catch (e) { toast.error((e as Error).message); }
           }}
@@ -327,6 +353,24 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
                   void load();
                 }}
               />
+              {linkedSubs.length > 0 && (
+                <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">Linked subscription{linkedSubs.length > 1 ? "s" : ""}</p>
+                    <span className="text-xs text-muted-foreground">Reference only — not included in project totals</span>
+                  </div>
+                  <ul className="text-sm space-y-1">
+                    {linkedSubs.map((s) => (
+                      <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="font-medium">{s.plan_name}</span>
+                        <span className="text-muted-foreground">{s.billing_cycle}</span>
+                        <span>{formatGBP(s.cost)}</span>
+                        {s.renewal_date && <span className="text-muted-foreground">renews {formatDateUK(s.renewal_date)}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </CollapsibleContent>
           </CardContent>
         </Card>

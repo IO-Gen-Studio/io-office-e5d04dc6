@@ -4,20 +4,31 @@ import defaultTemplate from "@/assets/cost-proposal-template.pdf.asset.json";
 
 export type CostProposalKind = "project" | "work" | "subscription";
 
+export type CostProposalItem = {
+  item_no: string | null;
+  description: string;
+  quantity: number;
+  final_cost: number;
+};
+
+export type CostProposalSection = {
+  heading: string;
+  items: CostProposalItem[];
+  /** Subscription sub-section only */
+  renewalDate?: string | null;
+};
+
 export type CostProposalInput = {
   kind: CostProposalKind;
   clientName: string | null | undefined;
   /** Project/work title or subscription plan name */
   title: string;
   description: string | null | undefined;
-  /** Subscriptions only */
+  /** Subscriptions only — applies to the primary section */
   renewalDate?: string | null;
-  items: Array<{
-    item_no: string | null;
-    description: string;
-    quantity: number;
-    final_cost: number;
-  }>;
+  items: CostProposalItem[];
+  /** Optional second section appended after the main one (e.g. linked subscription) */
+  extraSection?: CostProposalSection;
 };
 
 type Settings = {
@@ -167,7 +178,6 @@ export async function generateCostProposalPdf(input: CostProposalInput): Promise
     const rowTop = y;
     const rowBottom = y - opts.rowHeight;
     let x = marginX;
-    // borders
     page.drawRectangle({
       x: marginX, y: rowBottom, width: contentWidth, height: opts.rowHeight,
       borderColor: muted, borderWidth: 0.7,
@@ -184,7 +194,6 @@ export async function generateCostProposalPdf(input: CostProposalInput): Promise
         page.drawText(ln, { x: tx, y: ty, size, font, color: ink });
         ty -= 13;
       }
-      // vertical divider
       if (i < cols.length - 1) {
         page.drawLine({
           start: { x: x + col.width, y: rowTop },
@@ -197,40 +206,77 @@ export async function generateCostProposalPdf(input: CostProposalInput): Promise
     y = rowBottom;
   };
 
-  await ensureSpace(40);
-  drawRow(cols.map((c) => c.header), { bold: true, rowHeight: 28 });
+  const drawSection = async (opts: {
+    heading?: string;
+    items: CostProposalItem[];
+    renewalDate?: string | null;
+    isSubtotal: boolean;
+  }) => {
+    if (opts.heading) {
+      await ensureSpace(22);
+      page.drawText(opts.heading, { x: marginX, y, size: 12, font: helvBold, color: ink });
+      y -= 18;
+    }
+    await ensureSpace(40);
+    drawRow(cols.map((c) => c.header), { bold: true, rowHeight: 28 });
+    for (const item of opts.items) {
+      const descLines = wrapText(item.description || "", helv, 10.5, cols[1].width - 10);
+      const rowHeight = Math.max(26, 14 + descLines.length * 13);
+      await ensureSpace(rowHeight + 4);
+      drawRow(
+        [item.item_no ?? "", item.description ?? "", String(item.quantity ?? 0), formatGBP(Number(item.final_cost ?? 0))],
+        { rowHeight },
+      );
+    }
+    const totalQty = opts.items.reduce((s, i) => s + Number(i.quantity ?? 0), 0);
+    const totalCost = opts.items.reduce((s, i) => s + Number(i.final_cost ?? 0), 0);
+    await ensureSpace(30);
+    drawRow([
+      "",
+      opts.isSubtotal ? "Subtotal" : "Total",
+      String(totalQty),
+      formatGBP(totalCost),
+    ], { bold: true, rowHeight: 26 });
+    y -= 10;
+    if (opts.renewalDate) {
+      await ensureSpace(20);
+      page.drawText(`Renewal due: ${formatDateLong(opts.renewalDate)}`, {
+        x: marginX, y, size: 11, font: helvBold, color: ink,
+      });
+      y -= 22;
+    }
+    return totalCost;
+  };
 
-  for (const item of input.items) {
-    const descLines = wrapText(item.description || "", helv, 10.5, cols[1].width - 10);
-    const rowHeight = Math.max(26, 14 + descLines.length * 13);
-    await ensureSpace(rowHeight + 4);
-    drawRow(
-      [
-        item.item_no ?? "",
-        item.description ?? "",
-        String(item.quantity ?? 0),
-        formatGBP(Number(item.final_cost ?? 0)),
-      ],
-      { rowHeight },
-    );
-  }
+  const hasExtra = !!input.extraSection;
 
-  // Totals row
-  const totalQty = input.items.reduce((s, i) => s + Number(i.quantity ?? 0), 0);
-  const totalCost = input.items.reduce((s, i) => s + Number(i.final_cost ?? 0), 0);
-  await ensureSpace(30);
-  drawRow(["", "Total", String(totalQty), formatGBP(totalCost)], { bold: true, rowHeight: 26 });
+  // Primary section
+  const primaryTotal = await drawSection({
+    heading: hasExtra ? (input.kind === "subscription" ? `Subscription — ${input.title}` : "Project & Works") : undefined,
+    items: input.items,
+    renewalDate: input.kind === "subscription" ? input.renewalDate ?? null : null,
+    isSubtotal: hasExtra,
+  });
 
-  y -= 16;
-
-  // Renewal (subscriptions only)
-  if (input.kind === "subscription" && input.renewalDate) {
-    await ensureSpace(20);
-    page.drawText(`Renewal due: ${formatDateLong(input.renewalDate)}`, {
-      x: marginX, y, size: 11, font: helvBold, color: ink,
+  // Optional extra section (combined cost proposal)
+  let grandTotal = primaryTotal;
+  if (hasExtra && input.extraSection) {
+    y -= 6;
+    const extraTotal = await drawSection({
+      heading: input.extraSection.heading,
+      items: input.extraSection.items,
+      renewalDate: input.extraSection.renewalDate ?? null,
+      isSubtotal: true,
     });
-    y -= 22;
+    grandTotal += extraTotal;
+    await ensureSpace(30);
+    drawRow(["", "Grand Total", "", formatGBP(grandTotal)], { bold: true, rowHeight: 26 });
+    y -= 10;
   }
+
+  // Renewal (single-section subscriptions handled inside drawSection)
+  y -= 6;
+
 
   // Conditions
   if (conditions.length) {
