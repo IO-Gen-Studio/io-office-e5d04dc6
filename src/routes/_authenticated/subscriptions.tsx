@@ -314,6 +314,7 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
             <Info label="Contact" value={(() => { const c = contacts.find((x) => x.id === sub.client_contact_id); return c ? `${c.first_name} ${c.last_name}` : "—"; })()} />
             <Info label="Status" value={statusLabel(sub.status)} />
             <Info label="Renewal date" value={formatDateUK(sub.renewal_date) || "—"} />
+            <Info label="Linked project / work" value={(() => { const p = projects.find((x) => x.id === sub.project_id); return p ? `${p.title} (${p.type === "work" ? "Work" : "Project"})` : "—"; })()} />
           </div>
           {sub.description && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{sub.description}</p>}
           <CustomFieldDisplay module="subscriptions" value={sub.custom} />
