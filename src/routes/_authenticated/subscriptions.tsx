@@ -68,17 +68,20 @@ function SubList({ editable, onOpen }: { editable: boolean; onOpen: (s: Sub) => 
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [planOpts, setPlanOpts] = useState<PlanOpt[]>([]);
+  const [projects, setProjects] = useState<LinkedProject[]>([]);
   const [open, setOpen] = useState(false);
 
   const load = async () => {
-    const [{ data: s }, { data: o }, { data: c }, { data: p }] = await Promise.all([
+    const [{ data: s }, { data: o }, { data: c }, { data: p }, { data: pj }] = await Promise.all([
       supabase.from("subscriptions").select("*").order("renewal_date", { ascending: true, nullsFirst: false }),
       supabase.from("organisations").select("id,name").order("name"),
       supabase.from("contacts").select("id,first_name,last_name,organisation_id").order("last_name"),
       supabase.from("subscription_plan_options").select("*").order("position"),
+      supabase.from("projects").select("id,title,type").order("title"),
     ]);
     setRows((s ?? []) as Sub[]); setOrgs((o ?? []) as Org[]); setContacts((c ?? []) as Contact[]);
     setPlanOpts((p ?? []) as PlanOpt[]);
+    setProjects((pj ?? []) as LinkedProject[]);
   };
   useEffect(() => { void load(); }, []);
 
