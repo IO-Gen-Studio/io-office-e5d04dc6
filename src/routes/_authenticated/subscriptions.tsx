@@ -412,7 +412,7 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
         </CardContent>
       </Card>
 
-      <SubDialog open={openEdit} onOpenChange={setOpenEdit} sub={sub} orgs={orgs} contacts={contacts} planOpts={planOpts} onSaved={load} />
+      <SubDialog open={openEdit} onOpenChange={setOpenEdit} sub={sub} orgs={orgs} contacts={contacts} planOpts={planOpts} projects={projects} onSaved={load} />
     </div>
   );
 }
