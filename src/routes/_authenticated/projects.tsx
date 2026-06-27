@@ -212,19 +212,22 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [linkedSubs, setLinkedSubs] = useState<LinkedSub[]>([]);
   const [openEdit, setOpenEdit] = useState(false);
   const [customLabel, setCustomLabel] = useState("");
 
   const load = async () => {
-    const [{ data: m }, { data: o }, { data: pr }, { data: c }, { data: fresh }] = await Promise.all([
+    const [{ data: m }, { data: o }, { data: pr }, { data: c }, { data: fresh }, { data: subs }] = await Promise.all([
       supabase.from("milestones").select("*").eq("parent_id", project.id).eq("parent_type", "project").order("position"),
       supabase.from("organisations").select("id,name").order("name"),
       supabase.from("profiles").select("id,full_name").order("full_name"),
       supabase.from("contacts").select("id,first_name,last_name,organisation_id").order("last_name"),
       supabase.from("projects").select("*").eq("id", project.id).single(),
+      supabase.from("subscriptions").select("id,plan_name,billing_cycle,cost,renewal_date,status").eq("project_id", project.id).order("plan_name"),
     ]);
     setMilestones((m ?? []) as Milestone[]);
     setOrgs((o ?? []) as Org[]); setProfiles((pr ?? []) as Profile[]); setContacts((c ?? []) as Contact[]);
+    setLinkedSubs((subs ?? []) as LinkedSub[]);
     if (fresh) onSaved(fresh as Project);
   };
   useEffect(() => { void load(); }, [project.id]);
