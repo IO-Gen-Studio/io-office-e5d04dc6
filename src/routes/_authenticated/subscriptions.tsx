@@ -432,14 +432,15 @@ function Info({ label, value }: { label: string; value: string }) {
   return <div><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{value}</span></div>;
 }
 
-function SubDialog({ open, onOpenChange, sub, orgs, contacts, planOpts, onSaved }: {
-  open: boolean; onOpenChange: (o: boolean) => void; sub: Sub | null; orgs: Org[]; contacts: Contact[]; planOpts: PlanOpt[]; onSaved: () => void;
+function SubDialog({ open, onOpenChange, sub, orgs, contacts, planOpts, projects, onSaved }: {
+  open: boolean; onOpenChange: (o: boolean) => void; sub: Sub | null; orgs: Org[]; contacts: Contact[]; planOpts: PlanOpt[]; projects: LinkedProject[]; onSaved: () => void;
 }) {
   const [plan, setPlan] = useState(""); const [cost, setCost] = useState("0");
   const [cycle, setCycle] = useState("monthly");
   const [renewal, setRenewal] = useState(""); const [status, setStatus] = useState<SStatus>("active");
   const [org, setOrg] = useState<string>("__none__"); const [contact, setContact] = useState<string>("__none__");
   const [description, setDescription] = useState("");
+  const [projectId, setProjectId] = useState<string>("__none__");
   const [customVals, setCustomVals] = useState<Record<string, unknown>>({});
   const [localOrgs, setLocalOrgs] = useState<Org[]>(orgs);
   const [localContacts, setLocalContacts] = useState<Contact[]>(contacts);
@@ -458,6 +459,7 @@ function SubDialog({ open, onOpenChange, sub, orgs, contacts, planOpts, onSaved 
     setStatus(sub?.status ?? "active");
     setOrg(sub?.client_org_id ?? "__none__"); setContact(sub?.client_contact_id ?? "__none__");
     setDescription(sub?.description ?? "");
+    setProjectId(sub?.project_id ?? "__none__");
     setCustomVals((sub?.custom ?? {}) as Record<string, unknown>);
   }, [sub, open]);
 
@@ -469,6 +471,7 @@ function SubDialog({ open, onOpenChange, sub, orgs, contacts, planOpts, onSaved 
       client_org_id: org === "__none__" ? null : org,
       client_contact_id: contact === "__none__" ? null : contact,
       description: description || null,
+      project_id: projectId === "__none__" ? null : projectId,
       custom: customVals as never,
     };
     if (sub) {
