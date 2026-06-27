@@ -278,12 +278,34 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
           onClick={async () => {
             try {
               const items = await fetchCostItems("project", project.id);
+              let extraSection;
+              if (linkedSubs.length > 0) {
+                const names = linkedSubs.map((s) => `"${s.plan_name}"`).join(", ");
+                const include = window.confirm(
+                  `Include the linked subscription${linkedSubs.length > 1 ? "s" : ""} ${names} in this Cost Proposal?\n\nOK = include both. Cancel = project only.`
+                );
+                if (include) {
+                  const allItems = [] as Awaited<ReturnType<typeof fetchCostItems>>;
+                  for (const s of linkedSubs) {
+                    const its = await fetchCostItems("subscription", s.id);
+                    allItems.push(...its);
+                  }
+                  extraSection = {
+                    heading: linkedSubs.length === 1
+                      ? `Subscription — ${linkedSubs[0].plan_name}`
+                      : "Linked subscriptions",
+                    items: allItems,
+                    renewalDate: linkedSubs.length === 1 ? linkedSubs[0].renewal_date : null,
+                  };
+                }
+              }
               await generateCostProposalPdf({
                 kind: project.type === "work" ? "work" : "project",
                 clientName: orgs.find((o) => o.id === project.client_org_id)?.name,
                 title: project.title,
                 description: project.description,
                 items,
+                extraSection,
               });
             } catch (e) { toast.error((e as Error).message); }
           }}
