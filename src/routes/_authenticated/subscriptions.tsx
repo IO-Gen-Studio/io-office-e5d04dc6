@@ -584,6 +584,17 @@ function SubDialog({ open, onOpenChange, sub, orgs, contacts, planOpts, projects
               </Button>
             </div>
           </div>
+          <div className="space-y-1">
+            <Label>Linked project / work</Label>
+            <Select value={projectId} onValueChange={setProjectId}>
+              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None</SelectItem>
+                {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.title} ({p.type === "work" ? "Work" : "Project"})</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Optional. Shown on the project's Cost Breakdown as a reference (not summed into project totals).</p>
+          </div>
           <CustomFieldValues module="subscriptions" value={customVals} onChange={setCustomVals} />
         </div>
         <DialogFooter>
