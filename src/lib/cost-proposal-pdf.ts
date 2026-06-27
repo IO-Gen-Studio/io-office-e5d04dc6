@@ -4,20 +4,31 @@ import defaultTemplate from "@/assets/cost-proposal-template.pdf.asset.json";
 
 export type CostProposalKind = "project" | "work" | "subscription";
 
+export type CostProposalItem = {
+  item_no: string | null;
+  description: string;
+  quantity: number;
+  final_cost: number;
+};
+
+export type CostProposalSection = {
+  heading: string;
+  items: CostProposalItem[];
+  /** Subscription sub-section only */
+  renewalDate?: string | null;
+};
+
 export type CostProposalInput = {
   kind: CostProposalKind;
   clientName: string | null | undefined;
   /** Project/work title or subscription plan name */
   title: string;
   description: string | null | undefined;
-  /** Subscriptions only */
+  /** Subscriptions only — applies to the primary section */
   renewalDate?: string | null;
-  items: Array<{
-    item_no: string | null;
-    description: string;
-    quantity: number;
-    final_cost: number;
-  }>;
+  items: CostProposalItem[];
+  /** Optional second section appended after the main one (e.g. linked subscription) */
+  extraSection?: CostProposalSection;
 };
 
 type Settings = {
