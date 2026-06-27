@@ -271,6 +271,20 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
           onClick={async () => {
             try {
               const items = await fetchCostItems("subscription", sub.id);
+              const linkedProject = sub.project_id ? projects.find((p) => p.id === sub.project_id) : null;
+              let extraSection;
+              if (linkedProject) {
+                const include = window.confirm(
+                  `Include the linked ${linkedProject.type === "work" ? "work" : "project"} "${linkedProject.title}" in this Cost Proposal?\n\nOK = include both. Cancel = subscription only.`
+                );
+                if (include) {
+                  const projectItems = await fetchCostItems("project", linkedProject.id);
+                  extraSection = {
+                    heading: `${linkedProject.type === "work" ? "Work" : "Project"} — ${linkedProject.title}`,
+                    items: projectItems,
+                  };
+                }
+              }
               await generateCostProposalPdf({
                 kind: "subscription",
                 clientName: orgs.find((o) => o.id === sub.client_org_id)?.name,
@@ -278,6 +292,7 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
                 description: sub.description,
                 renewalDate: sub.renewal_date,
                 items,
+                extraSection,
               });
             } catch (e) { toast.error((e as Error).message); }
           }}
