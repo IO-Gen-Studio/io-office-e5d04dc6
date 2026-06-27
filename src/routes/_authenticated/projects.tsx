@@ -43,6 +43,7 @@ type Org = { id: string; name: string };
 type Contact = { id: string; first_name: string; last_name: string; organisation_id: string | null };
 type Milestone = { id: string; parent_id: string; parent_type: string; label: string; due_date: string | null; completed_at: string | null; is_custom: boolean; position: number };
 type MTemplate = { id: string; label: string; position: number; module: string; project_type: string | null };
+type LinkedSub = { id: string; plan_name: string; billing_cycle: string; cost: number; renewal_date: string | null; status: string };
 
 export const Route = createFileRoute("/_authenticated/projects")({ component: ProjectsPage });
 
