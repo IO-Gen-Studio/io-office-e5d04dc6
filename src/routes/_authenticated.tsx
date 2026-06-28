@@ -130,8 +130,10 @@ function AuthLayout() {
   const adminVisible = isAdmin || isSuperAdmin;
 
   return (
+    <FiscalYearProvider>
     <div className="min-h-dvh w-full flex bg-background">
       <FloatingSidebar canView={canView} adminVisible={adminVisible} onSignOut={() => signOut()} />
+
 
       {/* Mobile drawer */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
