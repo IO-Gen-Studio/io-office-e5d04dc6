@@ -126,11 +126,8 @@ function CampaignsTab({ editable, onOpen }: { editable: boolean; onOpen: (c: Cam
             <TableHead className="text-right">Actions</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {(() => {
-              const { inRange } = useFiscalYear();
-              const visible = rows.filter((c) => inRange(c.created_at));
-              return visible.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No campaigns yet.</TableCell></TableRow> :
-                visible.map((c) => {
+            {visibleCampaigns.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No campaigns yet.</TableCell></TableRow> :
+              visibleCampaigns.map((c) => {
                 const contacts = contactsByCampaign[c.id] ?? [];
                 const next = computeNext(c, contacts);
                 return (
