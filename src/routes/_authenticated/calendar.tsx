@@ -15,6 +15,7 @@ import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateUK } from "@/lib/format";
 import { UK_BANK_HOLIDAYS } from "@/lib/uk-bank-holidays";
+import { useFiscalYear } from "@/lib/fiscal-year";
 
 export const Route = createFileRoute("/_authenticated/calendar")({ component: CalendarPage });
 
