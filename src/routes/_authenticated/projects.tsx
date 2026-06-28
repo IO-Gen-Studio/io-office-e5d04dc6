@@ -121,7 +121,11 @@ function ProjectList({ editable, onOpen }: { editable: boolean; onOpen: (p: Proj
   };
   useEffect(() => { void load(); }, []);
 
-  const filtered = useMemo(() => rows.filter((r) => r.type === tab), [rows, tab]);
+  const { inRange } = useFiscalYear();
+  const filtered = useMemo(
+    () => rows.filter((r) => r.type === tab && inRange(r.start_date ?? r.created_at)),
+    [rows, tab, inRange],
+  );
 
   const remove = async (p: Project) => {
     if (!confirm(`Delete "${p.title}"?`)) return;
