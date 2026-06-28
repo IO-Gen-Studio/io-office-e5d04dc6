@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import logoUrl from "@/assets/io-gen-logo.png";
+import { FiscalYearProvider, FiscalYearSelect } from "@/lib/fiscal-year";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
