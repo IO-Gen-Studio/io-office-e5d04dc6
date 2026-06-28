@@ -255,6 +255,7 @@ function AuthLayout() {
         </main>
       </div>
     </div>
+    </FiscalYearProvider>
   );
 }
 
