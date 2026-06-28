@@ -100,7 +100,9 @@ function SubList({ editable, onOpen }: { editable: boolean; onOpen: (s: Sub) => 
     void load();
   };
 
-  const mrr = rows.filter((r) => r.status === "active").reduce((sum, r) => {
+  const { inRange } = useFiscalYear();
+  const yearRows = rows.filter((r) => inRange(r.renewal_date));
+  const mrr = yearRows.filter((r) => r.status === "active").reduce((sum, r) => {
     const c = Number(r.cost);
     return sum + (r.billing_cycle === "yearly" ? c / 12 : r.billing_cycle === "quarterly" ? c / 3 : c);
   }, 0);
