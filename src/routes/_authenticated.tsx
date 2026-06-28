@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import logoUrl from "@/assets/io-gen-logo.png";
+import { FiscalYearProvider, FiscalYearSelect } from "@/lib/fiscal-year";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
@@ -129,8 +130,10 @@ function AuthLayout() {
   const adminVisible = isAdmin || isSuperAdmin;
 
   return (
+    <FiscalYearProvider>
     <div className="min-h-dvh w-full flex bg-background">
       <FloatingSidebar canView={canView} adminVisible={adminVisible} onSignOut={() => signOut()} />
+
 
       {/* Mobile drawer */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -190,6 +193,7 @@ function AuthLayout() {
               </Select>
             ))}
           <div className="flex-1" />
+          <FiscalYearSelect />
           <Link
             to="/notifications"
             className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
@@ -251,6 +255,7 @@ function AuthLayout() {
         </main>
       </div>
     </div>
+    </FiscalYearProvider>
   );
 }
 

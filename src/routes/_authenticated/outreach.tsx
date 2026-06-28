@@ -18,6 +18,7 @@ import { Plus, Pencil, Trash2, ArrowLeft, Search, Download, Upload, ExternalLink
 import { toast } from "sonner";
 import { formatDateUK } from "@/lib/format";
 import { CustomFieldValues } from "@/components/CustomFieldValues";
+import { useFiscalYear } from "@/lib/fiscal-year";
 
 export const Route = createFileRoute("/_authenticated/outreach")({ component: OutreachPage });
 
@@ -87,6 +88,8 @@ function CampaignsTab({ editable, onOpen }: { editable: boolean; onOpen: (c: Cam
     setContactsByCampaign(map);
   };
   useEffect(() => { void load(); }, []);
+  const { inRange } = useFiscalYear();
+  const visibleCampaigns = useMemo(() => rows.filter((c) => inRange(c.created_at)), [rows, inRange]);
 
   const computeNext = (c: Campaign, contacts: CC[]): { label: string; date: string } => {
     if (!contacts || contacts.length === 0) return { label: "Add contacts", date: "—" };
@@ -125,8 +128,8 @@ function CampaignsTab({ editable, onOpen }: { editable: boolean; onOpen: (c: Cam
             <TableHead className="text-right">Actions</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {rows.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No campaigns yet.</TableCell></TableRow> :
-              rows.map((c) => {
+            {visibleCampaigns.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No campaigns yet.</TableCell></TableRow> :
+              visibleCampaigns.map((c) => {
                 const contacts = contactsByCampaign[c.id] ?? [];
                 const next = computeNext(c, contacts);
                 return (

@@ -19,6 +19,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { CustomFieldValues } from "@/components/CustomFieldValues";
 import { SocialPostMockupDialog } from "@/components/SocialPostMockup";
 import { useBuiltinFieldLabel, useBuiltinFieldOptions } from "@/lib/builtin-labels";
+import { useFiscalYear } from "@/lib/fiscal-year";
 
 type Platform = Database["public"]["Enums"]["social_platform"];
 type PostStatus = Database["public"]["Enums"]["post_status"];
@@ -153,7 +154,9 @@ function PlansTable({
     ? <ArrowUpDown className="size-3 inline ml-1 opacity-50" />
     : sortDir === "asc" ? <ArrowUp className="size-3 inline ml-1" /> : <ArrowDown className="size-3 inline ml-1" />;
 
+  const { inRange } = useFiscalYear();
   const filtered = rows.filter((p) => {
+    if (!inRange(p.scheduled_at)) return false;
     if (platformFilter !== "all" && p.platform !== platformFilter) return false;
     if (approvalFilter !== "all" && p.approval_status !== approvalFilter) return false;
     if (search) {

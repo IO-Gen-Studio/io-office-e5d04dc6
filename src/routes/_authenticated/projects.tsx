@@ -25,6 +25,7 @@ import { CustomFieldDisplay, useCustomFieldColumns } from "@/components/CustomFi
 import { CostBreakdown } from "@/components/CostBreakdown";
 import { TodoList } from "@/components/TodoList";
 import { useBuiltinFieldLabel, useBuiltinFieldOptions } from "@/lib/builtin-labels";
+import { useFiscalYear } from "@/lib/fiscal-year";
 import type { Database } from "@/integrations/supabase/types";
 
 type PType = Database["public"]["Enums"]["project_type"];
@@ -36,6 +37,7 @@ type Project = {
   team_lead_id: string | null; client_org_id: string | null; client_contact_id: string | null;
   start_date: string | null; end_date: string | null;
   total_cost: number; supplier_cost: number;
+  created_at?: string | null;
   custom: Record<string, unknown> | null;
 };
 type Profile = { id: string; full_name: string };
@@ -120,7 +122,11 @@ function ProjectList({ editable, onOpen }: { editable: boolean; onOpen: (p: Proj
   };
   useEffect(() => { void load(); }, []);
 
-  const filtered = useMemo(() => rows.filter((r) => r.type === tab), [rows, tab]);
+  const { inRange } = useFiscalYear();
+  const filtered = useMemo(
+    () => rows.filter((r) => r.type === tab && inRange(r.start_date ?? r.created_at)),
+    [rows, tab, inRange],
+  );
 
   const remove = async (p: Project) => {
     if (!confirm(`Delete "${p.title}"?`)) return;

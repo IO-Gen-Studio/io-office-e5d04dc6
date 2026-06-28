@@ -16,6 +16,7 @@ import { ReferencePreview } from "@/components/CustomFieldValues";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
+import { useFiscalYear } from "@/lib/fiscal-year";
 import { DataTable, type DataTableColumn, type ColumnType } from "@/components/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -304,9 +305,11 @@ function IssuesPage() {
       .filter((column): column is DataTableColumn<Issue> => column !== null);
   }, [defs, editable, profiles]);
 
-  const resolved = rows.filter((row) => row.status === "Resolved" || row.status === "Closed");
-  const ongoing = rows.filter((row) => row.status !== "Resolved" && row.status !== "Closed");
-  const assignedToMe = rows.filter((row) => row.owner_id === user?.id);
+  const { inRange } = useFiscalYear();
+  const inYear = rows.filter((row) => inRange(row.issue_date));
+  const resolved = inYear.filter((row) => row.status === "Resolved" || row.status === "Closed");
+  const ongoing = inYear.filter((row) => row.status !== "Resolved" && row.status !== "Closed");
+  const assignedToMe = inYear.filter((row) => row.owner_id === user?.id);
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-6 py-6">

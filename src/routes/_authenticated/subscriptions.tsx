@@ -25,6 +25,7 @@ import { CustomFieldDisplay, useCustomFieldColumns } from "@/components/CustomFi
 import { CostBreakdown } from "@/components/CostBreakdown";
 import { TodoList } from "@/components/TodoList";
 import { useBuiltinFieldLabel, useBuiltinFieldOptions } from "@/lib/builtin-labels";
+import { useFiscalYear } from "@/lib/fiscal-year";
 import type { Database } from "@/integrations/supabase/types";
 
 type SStatus = Database["public"]["Enums"]["subscription_status"];
@@ -99,7 +100,9 @@ function SubList({ editable, onOpen }: { editable: boolean; onOpen: (s: Sub) => 
     void load();
   };
 
-  const mrr = rows.filter((r) => r.status === "active").reduce((sum, r) => {
+  const { inRange } = useFiscalYear();
+  const yearRows = rows.filter((r) => inRange(r.renewal_date));
+  const mrr = yearRows.filter((r) => r.status === "active").reduce((sum, r) => {
     const c = Number(r.cost);
     return sum + (r.billing_cycle === "yearly" ? c / 12 : r.billing_cycle === "quarterly" ? c / 3 : c);
   }, 0);
@@ -129,8 +132,8 @@ function SubList({ editable, onOpen }: { editable: boolean; onOpen: (s: Sub) => 
   const customCols = useCustomFieldColumns<Sub>("subscriptions");
   const allColumns = [...columns, ...customCols];
 
-  const activeRows = rows.filter((r) => r.status === "active");
-  const otherRows = rows.filter((r) => r.status !== "active");
+  const activeRows = yearRows.filter((r) => r.status === "active");
+  const otherRows = yearRows.filter((r) => r.status !== "active");
 
   const renderTable = (data: Sub[]) => (
     <DataTable
