@@ -132,8 +132,8 @@ function SubList({ editable, onOpen }: { editable: boolean; onOpen: (s: Sub) => 
   const customCols = useCustomFieldColumns<Sub>("subscriptions");
   const allColumns = [...columns, ...customCols];
 
-  const activeRows = rows.filter((r) => r.status === "active");
-  const otherRows = rows.filter((r) => r.status !== "active");
+  const activeRows = yearRows.filter((r) => r.status === "active");
+  const otherRows = yearRows.filter((r) => r.status !== "active");
 
   const renderTable = (data: Sub[]) => (
     <DataTable
