@@ -65,7 +65,7 @@ export function FiscalYearProvider({ children }: { children: ReactNode }) {
 
   const inRange = useCallback((date: string | null | undefined) => {
     if (!range) return true;
-    if (!date) return false;
+    if (!date) return true; // undated records remain visible
     const d = date.slice(0, 10);
     return d >= range.start && d <= range.end;
   }, [range]);
