@@ -74,7 +74,13 @@ function CalendarPage() {
   const { user } = useAuth();
   const [events, setEvents] = useState<Ev[]>([]);
   const [eventRows, setEventRows] = useState<EventRow[]>([]);
+  const { range } = useFiscalYear();
   const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  useEffect(() => {
+    if (!range) return;
+    const [y, m] = range.start.split("-").map(Number);
+    setCursor(new Date(y, m - 1, 1));
+  }, [range?.start]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
