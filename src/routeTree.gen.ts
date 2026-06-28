@@ -28,6 +28,7 @@ import { Route as AuthenticatedSettingsTenantsRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
 import { Route as AuthenticatedSettingsPlansRouteImport } from './routes/_authenticated/settings.plans'
 import { Route as AuthenticatedSettingsMilestonesRouteImport } from './routes/_authenticated/settings.milestones'
+import { Route as AuthenticatedSettingsFiscalYearRouteImport } from './routes/_authenticated/settings.fiscal-year'
 import { Route as AuthenticatedSettingsFieldsRouteImport } from './routes/_authenticated/settings.fields'
 import { Route as AuthenticatedSettingsCostProposalRouteImport } from './routes/_authenticated/settings.cost-proposal'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -133,6 +134,12 @@ const AuthenticatedSettingsMilestonesRoute =
     path: '/milestones',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSettingsFiscalYearRoute =
+  AuthenticatedSettingsFiscalYearRouteImport.update({
+    id: '/fiscal-year',
+    path: '/fiscal-year',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedSettingsFieldsRoute =
   AuthenticatedSettingsFieldsRouteImport.update({
     id: '/fields',
@@ -168,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/subscriptions': typeof AuthenticatedSubscriptionsRoute
   '/settings/cost-proposal': typeof AuthenticatedSettingsCostProposalRoute
   '/settings/fields': typeof AuthenticatedSettingsFieldsRoute
+  '/settings/fiscal-year': typeof AuthenticatedSettingsFiscalYearRoute
   '/settings/milestones': typeof AuthenticatedSettingsMilestonesRoute
   '/settings/plans': typeof AuthenticatedSettingsPlansRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
@@ -191,6 +199,7 @@ export interface FileRoutesByTo {
   '/subscriptions': typeof AuthenticatedSubscriptionsRoute
   '/settings/cost-proposal': typeof AuthenticatedSettingsCostProposalRoute
   '/settings/fields': typeof AuthenticatedSettingsFieldsRoute
+  '/settings/fiscal-year': typeof AuthenticatedSettingsFiscalYearRoute
   '/settings/milestones': typeof AuthenticatedSettingsMilestonesRoute
   '/settings/plans': typeof AuthenticatedSettingsPlansRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
@@ -216,6 +225,7 @@ export interface FileRoutesById {
   '/_authenticated/subscriptions': typeof AuthenticatedSubscriptionsRoute
   '/_authenticated/settings/cost-proposal': typeof AuthenticatedSettingsCostProposalRoute
   '/_authenticated/settings/fields': typeof AuthenticatedSettingsFieldsRoute
+  '/_authenticated/settings/fiscal-year': typeof AuthenticatedSettingsFiscalYearRoute
   '/_authenticated/settings/milestones': typeof AuthenticatedSettingsMilestonesRoute
   '/_authenticated/settings/plans': typeof AuthenticatedSettingsPlansRoute
   '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
@@ -241,6 +251,7 @@ export interface FileRouteTypes {
     | '/subscriptions'
     | '/settings/cost-proposal'
     | '/settings/fields'
+    | '/settings/fiscal-year'
     | '/settings/milestones'
     | '/settings/plans'
     | '/settings/profile'
@@ -264,6 +275,7 @@ export interface FileRouteTypes {
     | '/subscriptions'
     | '/settings/cost-proposal'
     | '/settings/fields'
+    | '/settings/fiscal-year'
     | '/settings/milestones'
     | '/settings/plans'
     | '/settings/profile'
@@ -288,6 +300,7 @@ export interface FileRouteTypes {
     | '/_authenticated/subscriptions'
     | '/_authenticated/settings/cost-proposal'
     | '/_authenticated/settings/fields'
+    | '/_authenticated/settings/fiscal-year'
     | '/_authenticated/settings/milestones'
     | '/_authenticated/settings/plans'
     | '/_authenticated/settings/profile'
@@ -439,6 +452,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsMilestonesRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/settings/fiscal-year': {
+      id: '/_authenticated/settings/fiscal-year'
+      path: '/fiscal-year'
+      fullPath: '/settings/fiscal-year'
+      preLoaderRoute: typeof AuthenticatedSettingsFiscalYearRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/settings/fields': {
       id: '/_authenticated/settings/fields'
       path: '/fields'
@@ -466,6 +486,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsCostProposalRoute: typeof AuthenticatedSettingsCostProposalRoute
   AuthenticatedSettingsFieldsRoute: typeof AuthenticatedSettingsFieldsRoute
+  AuthenticatedSettingsFiscalYearRoute: typeof AuthenticatedSettingsFiscalYearRoute
   AuthenticatedSettingsMilestonesRoute: typeof AuthenticatedSettingsMilestonesRoute
   AuthenticatedSettingsPlansRoute: typeof AuthenticatedSettingsPlansRoute
   AuthenticatedSettingsProfileRoute: typeof AuthenticatedSettingsProfileRoute
@@ -477,6 +498,7 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsCostProposalRoute:
     AuthenticatedSettingsCostProposalRoute,
   AuthenticatedSettingsFieldsRoute: AuthenticatedSettingsFieldsRoute,
+  AuthenticatedSettingsFiscalYearRoute: AuthenticatedSettingsFiscalYearRoute,
   AuthenticatedSettingsMilestonesRoute: AuthenticatedSettingsMilestonesRoute,
   AuthenticatedSettingsPlansRoute: AuthenticatedSettingsPlansRoute,
   AuthenticatedSettingsProfileRoute: AuthenticatedSettingsProfileRoute,
