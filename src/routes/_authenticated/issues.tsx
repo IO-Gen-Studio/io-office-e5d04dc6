@@ -16,6 +16,7 @@ import { ReferencePreview } from "@/components/CustomFieldValues";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
+import { useFiscalYear } from "@/lib/fiscal-year";
 import { DataTable, type DataTableColumn, type ColumnType } from "@/components/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
