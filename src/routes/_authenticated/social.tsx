@@ -19,6 +19,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { CustomFieldValues } from "@/components/CustomFieldValues";
 import { SocialPostMockupDialog } from "@/components/SocialPostMockup";
 import { useBuiltinFieldLabel, useBuiltinFieldOptions } from "@/lib/builtin-labels";
+import { useFiscalYear } from "@/lib/fiscal-year";
 
 type Platform = Database["public"]["Enums"]["social_platform"];
 type PostStatus = Database["public"]["Enums"]["post_status"];
