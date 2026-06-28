@@ -4,24 +4,33 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Mail, Briefcase, CreditCard } from "lucide-react";
+import { useFiscalYear } from "@/lib/fiscal-year";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({ component: Dashboard });
 
 function Dashboard() {
   const { profile } = useAuth();
+  const { range } = useFiscalYear();
   const [counts, setCounts] = useState({ contacts: 0, campaigns: 0, projects: 0, subscriptions: 0 });
 
   useEffect(() => {
     (async () => {
+      let contactsQ = supabase.from("contacts").select("*", { count: "exact", head: true });
+      let campaignsQ = supabase.from("campaigns").select("*", { count: "exact", head: true });
+      let projectsQ = supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "in_progress");
+      let subsQ = supabase.from("subscriptions").select("*", { count: "exact", head: true }).eq("status", "active");
+      if (range) {
+        contactsQ = contactsQ.gte("created_at", range.start).lte("created_at", `${range.end}T23:59:59`);
+        campaignsQ = campaignsQ.gte("created_at", range.start).lte("created_at", `${range.end}T23:59:59`);
+        projectsQ = projectsQ.gte("start_date", range.start).lte("start_date", range.end);
+        subsQ = subsQ.gte("renewal_date", range.start).lte("renewal_date", range.end);
+      }
       const [{ count: cContacts }, { count: cCampaigns }, { count: cProjects }, { count: cSubs }] = await Promise.all([
-        supabase.from("contacts").select("*", { count: "exact", head: true }),
-        supabase.from("campaigns").select("*", { count: "exact", head: true }),
-        supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "in_progress"),
-        supabase.from("subscriptions").select("*", { count: "exact", head: true }).eq("status", "active"),
+        contactsQ, campaignsQ, projectsQ, subsQ,
       ]);
       setCounts({ contacts: cContacts ?? 0, campaigns: cCampaigns ?? 0, projects: cProjects ?? 0, subscriptions: cSubs ?? 0 });
     })();
-  }, []);
+  }, [range?.start, range?.end]);
 
   const kpis = [
     { label: "Contacts", value: counts.contacts, icon: Users },
@@ -49,7 +58,6 @@ function Dashboard() {
           </Card>
         ))}
       </div>
-      {/* Activity feed temporarily hidden — will be reactivated later. */}
     </div>
   );
 }
