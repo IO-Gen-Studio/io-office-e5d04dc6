@@ -25,6 +25,7 @@ import { CustomFieldDisplay, useCustomFieldColumns } from "@/components/CustomFi
 import { CostBreakdown } from "@/components/CostBreakdown";
 import { TodoList } from "@/components/TodoList";
 import { useBuiltinFieldLabel, useBuiltinFieldOptions } from "@/lib/builtin-labels";
+import { useFiscalYear } from "@/lib/fiscal-year";
 import type { Database } from "@/integrations/supabase/types";
 
 type PType = Database["public"]["Enums"]["project_type"];
