@@ -193,6 +193,7 @@ function AuthLayout() {
               </Select>
             ))}
           <div className="flex-1" />
+          <FiscalYearSelect />
           <Link
             to="/notifications"
             className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
