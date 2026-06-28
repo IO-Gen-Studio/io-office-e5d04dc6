@@ -88,6 +88,8 @@ function CampaignsTab({ editable, onOpen }: { editable: boolean; onOpen: (c: Cam
     setContactsByCampaign(map);
   };
   useEffect(() => { void load(); }, []);
+  const { inRange } = useFiscalYear();
+  const visibleCampaigns = useMemo(() => rows.filter((c) => inRange(c.created_at)), [rows, inRange]);
 
   const computeNext = (c: Campaign, contacts: CC[]): { label: string; date: string } => {
     if (!contacts || contacts.length === 0) return { label: "Add contacts", date: "—" };
