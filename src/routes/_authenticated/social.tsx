@@ -231,6 +231,98 @@ function PlansTable({
   );
 }
 
+const PLATFORM_THEME: Record<string, { bar: string; chip: string; handle: string }> = {
+  instagram: { bar: "bg-gradient-to-r from-fuchsia-500 via-rose-500 to-amber-400", chip: "bg-rose-500 text-white", handle: "@your.brand" },
+  linkedin: { bar: "bg-[#0a66c2]", chip: "bg-[#0a66c2] text-white", handle: "Your Brand · Company" },
+  x: { bar: "bg-black", chip: "bg-black text-white", handle: "@yourbrand" },
+  facebook: { bar: "bg-[#1877f2]", chip: "bg-[#1877f2] text-white", handle: "Your Brand" },
+  tiktok: { bar: "bg-gradient-to-r from-[#ff0050] to-[#00f2ea]", chip: "bg-black text-white", handle: "@yourbrand" },
+  youtube: { bar: "bg-[#ff0000]", chip: "bg-[#ff0000] text-white", handle: "Your Brand" },
+  threads: { bar: "bg-zinc-900", chip: "bg-zinc-900 text-white", handle: "@yourbrand" },
+  eventbrite: { bar: "bg-[#d1410c]", chip: "bg-[#d1410c] text-white", handle: "Hosted by Your Brand" },
+};
+
+function getMedia(path: string | null): { url: string; kind: "image" | "video" | "pdf" | "other" } | null {
+  if (!path) return null;
+  const ext = path.toLowerCase().split(".").pop() ?? "";
+  const { data } = supabase.storage.from("social-media").getPublicUrl(path);
+  let kind: "image" | "video" | "pdf" | "other" = "other";
+  if (["jpg", "jpeg", "png", "gif", "webp", "avif", "svg"].includes(ext)) kind = "image";
+  else if (["mp4", "webm", "mov", "m4v", "ogg"].includes(ext)) kind = "video";
+  else if (ext === "pdf") kind = "pdf";
+  return { url: data.publicUrl, kind };
+}
+
+function PostCard({
+  plan, highlight, editable, platformLabel, approvalLabel, postStatusLabel,
+  onEdit, onView, onRemove,
+}: {
+  plan: Plan; highlight: boolean; editable: boolean;
+  platformLabel: (v: string) => string;
+  approvalLabel: (v: string) => string;
+  postStatusLabel: (v: string) => string;
+  onEdit: (p: Plan) => void; onView: (p: Plan) => void; onRemove: (p: Plan) => void;
+}) {
+  const theme = PLATFORM_THEME[plan.platform] ?? PLATFORM_THEME.linkedin;
+  const media = getMedia(plan.media_path);
+  const isVertical = plan.platform === "tiktok";
+  return (
+    <div className={`mb-4 break-inside-avoid rounded-2xl border bg-card shadow-soft overflow-hidden group transition hover:shadow-lg ${highlight ? "ring-2 ring-sidebar-primary" : ""}`}>
+      <div className={`h-1.5 ${theme.bar}`} />
+      <button type="button" onClick={() => onView(plan)} className="block w-full text-left">
+        {/* Mini platform preview */}
+        <div className="px-3 pt-3 pb-2 flex items-center gap-2">
+          <div className={`size-7 rounded-full grid place-items-center text-[10px] font-semibold ${theme.chip}`}>IO</div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold truncate">{theme.handle}</div>
+            <div className="text-[10px] text-muted-foreground truncate">
+              {plan.scheduled_at ? new Date(plan.scheduled_at).toLocaleDateString() : "Unscheduled"} · {platformLabel(plan.platform)}
+            </div>
+          </div>
+        </div>
+        {media ? (
+          <div className={`bg-muted overflow-hidden ${isVertical ? "aspect-[9/16]" : ""}`}>
+            {media.kind === "image" && <img src={media.url} alt={plan.title || "Post media"} className="w-full h-auto block group-hover:scale-[1.02] transition-transform duration-300" />}
+            {media.kind === "video" && <video src={media.url} className="w-full h-auto block" muted playsInline />}
+            {media.kind === "pdf" && (
+              <div className="aspect-square grid place-items-center text-xs text-muted-foreground">PDF attachment</div>
+            )}
+            {media.kind === "other" && (
+              <div className="aspect-square grid place-items-center text-xs text-muted-foreground"><ImageIcon className="size-6 opacity-50" /></div>
+            )}
+          </div>
+        ) : (
+          <div className={`px-4 py-6 ${plan.platform === "x" ? "bg-black text-white" : plan.platform === "tiktok" ? "bg-black text-white" : "bg-muted/30"}`}>
+            <div className="text-sm font-medium line-clamp-2">{plan.title || "Untitled"}</div>
+          </div>
+        )}
+        <div className="px-3 py-3 space-y-2">
+          {plan.title && media && <div className="text-sm font-semibold leading-snug line-clamp-2">{plan.title}</div>}
+          <div className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-4">{plan.copy || "—"}</div>
+        </div>
+      </button>
+      <div className="px-3 pb-3 flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {plan.approval_status === "approved"
+            ? <Badge className="text-[10px]">{approvalLabel("approved")}</Badge>
+            : plan.approval_status === "for_approval"
+              ? <Badge className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 text-[10px]">{approvalLabel("for_approval")}</Badge>
+              : <Badge variant="outline" className="text-[10px]">{approvalLabel("not_approved")}</Badge>}
+          <Badge variant={plan.post_status === "posted" ? "default" : plan.post_status === "cancelled" ? "destructive" : "secondary"} className="text-[10px]">{postStatusLabel(plan.post_status)}</Badge>
+        </div>
+        <div className="flex items-center -mr-1">
+          <Button variant="ghost" size="icon" title="Preview" onClick={() => onView(plan)}><Eye className="size-4" /></Button>
+          {editable && <>
+            <Button variant="ghost" size="icon" aria-label={`Edit ${plan.title}`} onClick={() => onEdit(plan)}><Pencil className="size-4" /></Button>
+            <Button variant="ghost" size="icon" aria-label={`Delete ${plan.title}`} onClick={() => onRemove(plan)}><Trash2 className="size-4" /></Button>
+          </>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function PlanDialog({ open, onOpenChange, plan, profiles, onSaved }: { open: boolean; onOpenChange: (o: boolean) => void; plan: Plan | null; profiles: Profile[]; onSaved: () => void }) {
   const { activeTenantId, user } = useAuth();
   const [platform, setPlatform] = useState<Platform>("linkedin");
