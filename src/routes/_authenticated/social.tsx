@@ -202,44 +202,30 @@ function PlansTable({
             <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setPlatformFilter("all"); setApprovalFilter("all"); }}>Clear</Button>
           )}
         </div>
-        <Table>
-          <TableHeader><TableRow>
-            <TableHead><button type="button" className="inline-flex min-h-11 items-center select-none hover:text-foreground" onClick={() => toggleSort("platform")}>Platform<SortIcon k="platform" /></button></TableHead>
-            <TableHead><button type="button" className="inline-flex min-h-11 items-center select-none hover:text-foreground" onClick={() => toggleSort("title")}>Title<SortIcon k="title" /></button></TableHead>
-            <TableHead>Copy</TableHead>
-            <TableHead><button type="button" className="inline-flex min-h-11 items-center select-none hover:text-foreground" onClick={() => toggleSort("scheduled_at")}>Scheduled<SortIcon k="scheduled_at" /></button></TableHead>
-            <TableHead><button type="button" className="inline-flex min-h-11 items-center select-none hover:text-foreground" onClick={() => toggleSort("approval_status")}>Approval<SortIcon k="approval_status" /></button></TableHead>
-            <TableHead><button type="button" className="inline-flex min-h-11 items-center select-none hover:text-foreground" onClick={() => toggleSort("post_status")}>Status<SortIcon k="post_status" /></button></TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow></TableHeader>
-          <TableBody>
-            {sorted.length === 0 ? <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No posts.</TableCell></TableRow> :
-              sorted.map((p) => {
-                const isForApproval = highlightForApproval && p.approval_status === "for_approval";
-                return (
-                <TableRow key={p.id} className={isForApproval ? "bg-sidebar-accent/60 hover:bg-sidebar-accent" : undefined}>
-                  <TableCell><Badge variant="secondary">{platformLabel(p.platform)}</Badge></TableCell>
-                  <TableCell className="font-medium">{p.title || "—"}</TableCell>
-                  <TableCell className="max-w-md truncate text-muted-foreground">{p.copy || "—"}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{p.scheduled_at ? new Date(p.scheduled_at).toLocaleDateString() : "—"}</TableCell>
-                  <TableCell>
-                    {p.approval_status === "approved" ? <Badge>{approvalLabel("approved")}</Badge>
-                      : p.approval_status === "for_approval" ? <Badge className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90">{approvalLabel("for_approval")}</Badge>
-                      : <Badge variant="outline">{approvalLabel("not_approved")}</Badge>}
-                  </TableCell>
-                  <TableCell><Badge variant={p.post_status === "posted" ? "default" : p.post_status === "cancelled" ? "destructive" : "secondary"}>{postStatusLabel(p.post_status)}</Badge></TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" title="Preview" onClick={() => onView(p)}><Eye className="size-4" /></Button>
-                    {editable && <>
-                      <Button variant="ghost" size="icon" aria-label={`Edit ${p.title}`} onClick={() => onEdit(p)}><Pencil className="size-4" /></Button>
-                      <Button variant="ghost" size="icon" aria-label={`Delete ${p.title}`} onClick={() => onRemove(p)}><Trash2 className="size-4" /></Button>
-                    </>}
-                  </TableCell>
-                </TableRow>
-                );
-              })}
-          </TableBody>
-        </Table>
+        {sorted.length === 0 ? (
+          <div className="text-center text-muted-foreground py-12 text-sm">No posts.</div>
+        ) : (
+          <div className="[column-fill:_balance] columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
+            {sorted.map((p) => {
+              const isForApproval = highlightForApproval && p.approval_status === "for_approval";
+              return (
+                <PostCard
+                  key={p.id}
+                  plan={p}
+                  highlight={isForApproval}
+                  editable={editable}
+                  platformLabel={platformLabel}
+                  approvalLabel={approvalLabel}
+                  postStatusLabel={postStatusLabel}
+                  onEdit={onEdit}
+                  onView={onView}
+                  onRemove={onRemove}
+                />
+              );
+            })}
+          </div>
+        )}
+
       </CardContent>
     </Card>
   );
