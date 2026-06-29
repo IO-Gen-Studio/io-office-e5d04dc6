@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown, Calendar as CalendarIcon, Image as ImageIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown, Image as ImageIcon } from "lucide-react";
 
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
