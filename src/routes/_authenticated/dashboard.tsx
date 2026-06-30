@@ -350,12 +350,12 @@ function Dashboard() {
             {events.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-6">No events this week.</p>
             ) : (
-              events.slice(0, 5).map((e) => {
-                const d = new Date(`${e.event_date}T00:00:00`);
-                const time = e.start_time ? e.start_time.slice(0, 5) : "All day";
+              events.slice(0, 6).map((e) => {
+                const d = new Date(`${e.date}T00:00:00`);
+                const time = e.time ? e.time.slice(0, 5) : "All day";
                 return (
-                  <Link key={e.id} to="/calendar" className="flex items-start gap-3 group">
-                    <div className={`w-1 h-9 rounded-full mt-1 shrink-0 ${eventBar(e.event_type)}`} />
+                  <Link key={e.key} to="/calendar" className="flex items-start gap-3 group">
+                    <div className={`w-1 h-9 rounded-full mt-1 shrink-0 ${kindBar(e)}`} />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground group-hover:text-primary truncate">{e.title}</p>
                       <p className="text-xs text-muted-foreground">
