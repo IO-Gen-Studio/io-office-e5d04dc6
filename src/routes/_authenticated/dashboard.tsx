@@ -13,12 +13,13 @@ type SocialRow = {
   platform: string;
   scheduled_at: string | null;
 };
-type EventRow = {
-  id: string;
+type UpcomingItem = {
+  key: string;
+  date: string; // YYYY-MM-DD
   title: string;
-  event_date: string;
-  start_time: string | null;
-  event_type: string | null;
+  time: string | null;
+  kind: "event" | "milestone" | "renewal" | "post" | "project" | "bank_holiday";
+  eventType: string | null;
 };
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -43,8 +44,13 @@ function platformPill(p: string): { wrap: string; dot: string; title: string; su
     default:          return { wrap: "bg-muted border-border/60",        dot: "bg-muted-foreground", title: "text-foreground", sub: "text-muted-foreground" };
   }
 }
-function eventBar(t: string | null): string {
-  switch (t) {
+function kindBar(item: UpcomingItem): string {
+  if (item.kind === "milestone") return "bg-blue-500";
+  if (item.kind === "post") return "bg-purple-500";
+  if (item.kind === "renewal") return "bg-amber-500";
+  if (item.kind === "project") return "bg-slate-500";
+  if (item.kind === "bank_holiday") return "bg-rose-500";
+  switch (item.eventType) {
     case "team_holiday": return "bg-rose-500";
     case "conference":   return "bg-emerald-500";
     case "exhibition":   return "bg-indigo-500";
@@ -59,7 +65,7 @@ function Dashboard() {
   const [ops, setOps] = useState({ projects: 0, works: 0, subscriptions: 0, issues: 0 });
   const [emailMonthly, setEmailMonthly] = useState<number[]>(Array(12).fill(0));
   const [social, setSocial] = useState<SocialRow[]>([]);
-  const [events, setEvents] = useState<EventRow[]>([]);
+  const [events, setEvents] = useState<UpcomingItem[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -100,27 +106,42 @@ function Dashboard() {
         .order("scheduled_at", { ascending: true })
         .limit(4);
 
-      // Events — this week
+      // Upcoming this week — gather from all calendar sources
       const today = new Date();
       const wkStart = startOfWeek(today);
       const wkEnd = new Date(wkStart); wkEnd.setDate(wkEnd.getDate() + 6);
+      const todayStr = fmtLocalDate(today);
+      const wkEndStr = fmtLocalDate(wkEnd);
+
+      // Events: include multi-day events whose range overlaps [today, wkEnd]
       const eventsQ = supabase
         .from("events")
-        .select("id,title,event_date,start_time,event_type")
-        .gte("event_date", fmtLocalDate(today))
-        .lte("event_date", fmtLocalDate(wkEnd))
-        .order("event_date", { ascending: true })
-        .order("start_time", { ascending: true })
-        .limit(6);
+        .select("id,title,event_date,end_date,start_time,event_type")
+        .lte("event_date", wkEndStr)
+        .or(`end_date.gte.${todayStr},and(end_date.is.null,event_date.gte.${todayStr})`)
+        .order("event_date", { ascending: true });
+      const milestonesQ = supabase
+        .from("milestones").select("id,label,due_date")
+        .gte("due_date", todayStr).lte("due_date", wkEndStr);
+      const renewalsQ = supabase
+        .from("subscriptions").select("id,plan_name,renewal_date")
+        .gte("renewal_date", todayStr).lte("renewal_date", wkEndStr);
+      const projectsDueQ = supabase
+        .from("projects").select("id,title,end_date")
+        .gte("end_date", todayStr).lte("end_date", wkEndStr);
+      const postsQ = supabase
+        .from("social_plans").select("id,title,copy,platform,scheduled_at")
+        .gte("scheduled_at", `${todayStr}T00:00:00`)
+        .lte("scheduled_at", `${wkEndStr}T23:59:59`);
 
       const [
         kContacts, kCampaigns, kProjects, kSubs,
         oProj, oWork, oSub, oIss,
-        eRows, sRows, evRows,
+        eRows, sRows, evRows, msRows, rnRows, pjRows, pcRows,
       ] = await Promise.all([
         contactsQ, campaignsQ, projectsKpiQ, subsKpiQ,
         projOpsQ, workOpsQ, subOpsQ, issuesOpsQ,
-        emailRowsQ, socialQ, eventsQ,
+        emailRowsQ, socialQ, eventsQ, milestonesQ, renewalsQ, projectsDueQ, postsQ,
       ]);
 
       setCounts({
@@ -142,9 +163,30 @@ function Dashboard() {
         monthly[m] += 1;
       });
       setEmailMonthly(monthly);
-
       setSocial((sRows.data as SocialRow[] | null) ?? []);
-      setEvents((evRows.data as EventRow[] | null) ?? []);
+
+      // Build merged upcoming list
+      const up: UpcomingItem[] = [];
+      ((evRows.data as { id: string; title: string; event_date: string; end_date: string | null; start_time: string | null; event_type: string | null }[] | null) ?? []).forEach((e) => {
+        // Show on the first day within the week window
+        const firstShown = e.event_date < todayStr ? todayStr : e.event_date;
+        up.push({ key: `ev-${e.id}`, date: firstShown, title: e.title, time: e.start_time, kind: "event", eventType: e.event_type });
+      });
+      ((msRows.data as { id: string; label: string; due_date: string }[] | null) ?? []).forEach((m) =>
+        up.push({ key: `ms-${m.id}`, date: m.due_date, title: `Milestone: ${m.label}`, time: null, kind: "milestone", eventType: null }));
+      ((rnRows.data as { id: string; plan_name: string; renewal_date: string }[] | null) ?? []).forEach((r) =>
+        up.push({ key: `rn-${r.id}`, date: r.renewal_date, title: `Renewal: ${r.plan_name}`, time: null, kind: "renewal", eventType: null }));
+      ((pjRows.data as { id: string; title: string; end_date: string }[] | null) ?? []).forEach((p) =>
+        up.push({ key: `pj-${p.id}`, date: p.end_date, title: `Due: ${p.title}`, time: null, kind: "project", eventType: null }));
+      ((pcRows.data as { id: string; title: string | null; copy: string | null; platform: string; scheduled_at: string }[] | null) ?? []).forEach((s) =>
+        up.push({ key: `pc-${s.id}`, date: s.scheduled_at.slice(0, 10), title: `${s.platform}: ${(s.title || s.copy || "").slice(0, 40)}`, time: s.scheduled_at.slice(11, 16), kind: "post", eventType: null }));
+      // UK bank holidays this week
+      const { UK_BANK_HOLIDAYS } = await import("@/lib/uk-bank-holidays");
+      UK_BANK_HOLIDAYS.filter((h) => h.date >= todayStr && h.date <= wkEndStr).forEach((h) =>
+        up.push({ key: `bh-${h.date}`, date: h.date, title: `🇬🇧 ${h.title}`, time: null, kind: "bank_holiday", eventType: null }));
+
+      up.sort((a, b) => (a.date === b.date ? (a.time ?? "").localeCompare(b.time ?? "") : a.date.localeCompare(b.date)));
+      setEvents(up);
     })();
   }, [range?.start, range?.end]);
 
@@ -308,12 +350,12 @@ function Dashboard() {
             {events.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-6">No events this week.</p>
             ) : (
-              events.slice(0, 5).map((e) => {
-                const d = new Date(`${e.event_date}T00:00:00`);
-                const time = e.start_time ? e.start_time.slice(0, 5) : "All day";
+              events.slice(0, 6).map((e) => {
+                const d = new Date(`${e.date}T00:00:00`);
+                const time = e.time ? e.time.slice(0, 5) : "All day";
                 return (
-                  <Link key={e.id} to="/calendar" className="flex items-start gap-3 group">
-                    <div className={`w-1 h-9 rounded-full mt-1 shrink-0 ${eventBar(e.event_type)}`} />
+                  <Link key={e.key} to="/calendar" className="flex items-start gap-3 group">
+                    <div className={`w-1 h-9 rounded-full mt-1 shrink-0 ${kindBar(e)}`} />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground group-hover:text-primary truncate">{e.title}</p>
                       <p className="text-xs text-muted-foreground">
