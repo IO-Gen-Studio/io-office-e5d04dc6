@@ -13,12 +13,13 @@ type SocialRow = {
   platform: string;
   scheduled_at: string | null;
 };
-type EventRow = {
-  id: string;
+type UpcomingItem = {
+  key: string;
+  date: string; // YYYY-MM-DD
   title: string;
-  event_date: string;
-  start_time: string | null;
-  event_type: string | null;
+  time: string | null;
+  kind: "event" | "milestone" | "renewal" | "post" | "project" | "bank_holiday";
+  eventType: string | null;
 };
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
