@@ -76,11 +76,8 @@ function CalendarPage() {
   const [eventRows, setEventRows] = useState<EventRow[]>([]);
   const { range } = useFiscalYear();
   const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
-  useEffect(() => {
-    if (!range) return;
-    const [y, m] = range.start.split("-").map(Number);
-    setCursor(new Date(y, m - 1, 1));
-  }, [range?.start]);
+  // Note: calendar always opens on the current month, not the fiscal year start.
+  void range;
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
