@@ -60,7 +60,7 @@ function Dashboard() {
   const [ops, setOps] = useState({ projects: 0, works: 0, subscriptions: 0, issues: 0 });
   const [emailMonthly, setEmailMonthly] = useState<number[]>(Array(12).fill(0));
   const [social, setSocial] = useState<SocialRow[]>([]);
-  const [events, setEvents] = useState<EventRow[]>([]);
+  const [events, setEvents] = useState<UpcomingItem[]>([]);
 
   useEffect(() => {
     (async () => {
