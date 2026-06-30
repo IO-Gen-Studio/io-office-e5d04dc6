@@ -101,27 +101,42 @@ function Dashboard() {
         .order("scheduled_at", { ascending: true })
         .limit(4);
 
-      // Events — this week
+      // Upcoming this week — gather from all calendar sources
       const today = new Date();
       const wkStart = startOfWeek(today);
       const wkEnd = new Date(wkStart); wkEnd.setDate(wkEnd.getDate() + 6);
+      const todayStr = fmtLocalDate(today);
+      const wkEndStr = fmtLocalDate(wkEnd);
+
+      // Events: include multi-day events whose range overlaps [today, wkEnd]
       const eventsQ = supabase
         .from("events")
-        .select("id,title,event_date,start_time,event_type")
-        .gte("event_date", fmtLocalDate(today))
-        .lte("event_date", fmtLocalDate(wkEnd))
-        .order("event_date", { ascending: true })
-        .order("start_time", { ascending: true })
-        .limit(6);
+        .select("id,title,event_date,end_date,start_time,event_type")
+        .lte("event_date", wkEndStr)
+        .or(`end_date.gte.${todayStr},and(end_date.is.null,event_date.gte.${todayStr})`)
+        .order("event_date", { ascending: true });
+      const milestonesQ = supabase
+        .from("milestones").select("id,label,due_date")
+        .gte("due_date", todayStr).lte("due_date", wkEndStr);
+      const renewalsQ = supabase
+        .from("subscriptions").select("id,plan_name,renewal_date")
+        .gte("renewal_date", todayStr).lte("renewal_date", wkEndStr);
+      const projectsDueQ = supabase
+        .from("projects").select("id,title,end_date")
+        .gte("end_date", todayStr).lte("end_date", wkEndStr);
+      const postsQ = supabase
+        .from("social_plans").select("id,title,copy,platform,scheduled_at")
+        .gte("scheduled_at", `${todayStr}T00:00:00`)
+        .lte("scheduled_at", `${wkEndStr}T23:59:59`);
 
       const [
         kContacts, kCampaigns, kProjects, kSubs,
         oProj, oWork, oSub, oIss,
-        eRows, sRows, evRows,
+        eRows, sRows, evRows, msRows, rnRows, pjRows, pcRows,
       ] = await Promise.all([
         contactsQ, campaignsQ, projectsKpiQ, subsKpiQ,
         projOpsQ, workOpsQ, subOpsQ, issuesOpsQ,
-        emailRowsQ, socialQ, eventsQ,
+        emailRowsQ, socialQ, eventsQ, milestonesQ, renewalsQ, projectsDueQ, postsQ,
       ]);
 
       setCounts({
@@ -143,9 +158,30 @@ function Dashboard() {
         monthly[m] += 1;
       });
       setEmailMonthly(monthly);
-
       setSocial((sRows.data as SocialRow[] | null) ?? []);
-      setEvents((evRows.data as EventRow[] | null) ?? []);
+
+      // Build merged upcoming list
+      const up: UpcomingItem[] = [];
+      ((evRows.data as { id: string; title: string; event_date: string; end_date: string | null; start_time: string | null; event_type: string | null }[] | null) ?? []).forEach((e) => {
+        // Show on the first day within the week window
+        const firstShown = e.event_date < todayStr ? todayStr : e.event_date;
+        up.push({ key: `ev-${e.id}`, date: firstShown, title: e.title, time: e.start_time, kind: "event", eventType: e.event_type });
+      });
+      ((msRows.data as { id: string; label: string; due_date: string }[] | null) ?? []).forEach((m) =>
+        up.push({ key: `ms-${m.id}`, date: m.due_date, title: `Milestone: ${m.label}`, time: null, kind: "milestone", eventType: null }));
+      ((rnRows.data as { id: string; plan_name: string; renewal_date: string }[] | null) ?? []).forEach((r) =>
+        up.push({ key: `rn-${r.id}`, date: r.renewal_date, title: `Renewal: ${r.plan_name}`, time: null, kind: "renewal", eventType: null }));
+      ((pjRows.data as { id: string; title: string; end_date: string }[] | null) ?? []).forEach((p) =>
+        up.push({ key: `pj-${p.id}`, date: p.end_date, title: `Due: ${p.title}`, time: null, kind: "project", eventType: null }));
+      ((pcRows.data as { id: string; title: string | null; copy: string | null; platform: string; scheduled_at: string }[] | null) ?? []).forEach((s) =>
+        up.push({ key: `pc-${s.id}`, date: s.scheduled_at.slice(0, 10), title: `${s.platform}: ${(s.title || s.copy || "").slice(0, 40)}`, time: s.scheduled_at.slice(11, 16), kind: "post", eventType: null }));
+      // UK bank holidays this week
+      const { UK_BANK_HOLIDAYS } = await import("@/lib/uk-bank-holidays");
+      UK_BANK_HOLIDAYS.filter((h) => h.date >= todayStr && h.date <= wkEndStr).forEach((h) =>
+        up.push({ key: `bh-${h.date}`, date: h.date, title: `🇬🇧 ${h.title}`, time: null, kind: "bank_holiday", eventType: null }));
+
+      up.sort((a, b) => (a.date === b.date ? (a.time ?? "").localeCompare(b.time ?? "") : a.date.localeCompare(b.date)));
+      setEvents(up);
     })();
   }, [range?.start, range?.end]);
 
