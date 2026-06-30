@@ -44,8 +44,13 @@ function platformPill(p: string): { wrap: string; dot: string; title: string; su
     default:          return { wrap: "bg-muted border-border/60",        dot: "bg-muted-foreground", title: "text-foreground", sub: "text-muted-foreground" };
   }
 }
-function eventBar(t: string | null): string {
-  switch (t) {
+function kindBar(item: UpcomingItem): string {
+  if (item.kind === "milestone") return "bg-blue-500";
+  if (item.kind === "post") return "bg-purple-500";
+  if (item.kind === "renewal") return "bg-amber-500";
+  if (item.kind === "project") return "bg-slate-500";
+  if (item.kind === "bank_holiday") return "bg-rose-500";
+  switch (item.eventType) {
     case "team_holiday": return "bg-rose-500";
     case "conference":   return "bg-emerald-500";
     case "exhibition":   return "bg-indigo-500";
