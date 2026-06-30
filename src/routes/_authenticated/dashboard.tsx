@@ -221,7 +221,7 @@ function Dashboard() {
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-primary">
           Welcome back{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Here's a snapshot of your business.</p>
+        <p className="text-sm text-muted-foreground mt-1">Here’s an overview of everything that is happening right now.</p>
       </div>
 
       {/* KPI row */}
