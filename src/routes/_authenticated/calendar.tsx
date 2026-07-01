@@ -43,19 +43,33 @@ type EventRow = {
   event_type: string | null;
 };
 
-// Tailwind classes per kind / event type. Bank holidays + team holidays share a colour.
-const colorFor = (e: Pick<Ev, "kind" | "eventType">): string => {
-  if (e.kind === "bank_holiday") return "bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-100";
-  if (e.kind === "milestone") return "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-100";
-  if (e.kind === "post") return "bg-purple-100 text-purple-900 dark:bg-purple-900/40 dark:text-purple-100";
-  if (e.kind === "renewal") return "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100";
-  if (e.kind === "project") return "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100";
-  // events: by event_type
+// Tailwind chip classes per kind / event type (used inside day cells).
+const chipFor = (e: Pick<Ev, "kind" | "eventType">): string => {
+  if (e.kind === "bank_holiday") return "bg-rose-100 text-rose-800 border-rose-200";
+  if (e.kind === "milestone") return "bg-purple-100 text-purple-700 border-purple-200";
+  if (e.kind === "post") return "bg-emerald-100 text-emerald-700 border-emerald-200";
+  if (e.kind === "renewal") return "bg-amber-100 text-amber-700 border-amber-200";
+  if (e.kind === "project") return "bg-blue-100 text-blue-700 border-blue-200";
   switch (e.eventType) {
-    case "team_holiday": return "bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-100";
-    case "conference": return "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100";
-    case "exhibition": return "bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-100";
-    default: return "bg-primary/15 text-primary";
+    case "team_holiday": return "bg-rose-100 text-rose-700 border-rose-200";
+    case "conference": return "bg-cyan-100 text-cyan-700 border-cyan-200";
+    case "exhibition": return "bg-indigo-100 text-indigo-700 border-indigo-200";
+    default: return "bg-primary/10 text-primary border-primary/20";
+  }
+};
+
+// Solid dot / bar colour (Tailwind bg) used in legend + sidebar.
+const dotFor = (e: Pick<Ev, "kind" | "eventType">): string => {
+  if (e.kind === "bank_holiday") return "bg-slate-500";
+  if (e.kind === "milestone") return "bg-purple-500";
+  if (e.kind === "post") return "bg-emerald-500";
+  if (e.kind === "renewal") return "bg-amber-500";
+  if (e.kind === "project") return "bg-blue-500";
+  switch (e.eventType) {
+    case "team_holiday": return "bg-rose-500";
+    case "conference": return "bg-cyan-500";
+    case "exhibition": return "bg-indigo-500";
+    default: return "bg-primary";
   }
 };
 
@@ -65,10 +79,29 @@ const KIND_LEGEND: { label: string; sample: Pick<Ev, "kind" | "eventType"> }[] =
   { label: "Renewal", sample: { kind: "renewal" } },
   { label: "Project due", sample: { kind: "project" } },
   { label: "Team holiday", sample: { kind: "event", eventType: "team_holiday" } },
-  { label: "Conference / Webinar", sample: { kind: "event", eventType: "conference" } },
-  { label: "Exhibition / Trade show", sample: { kind: "event", eventType: "exhibition" } },
+  { label: "Conference", sample: { kind: "event", eventType: "conference" } },
+  { label: "Exhibition", sample: { kind: "event", eventType: "exhibition" } },
   { label: "UK bank holiday", sample: { kind: "bank_holiday" } },
 ];
+
+type CategoryFilter = "all" | EvKind | `event:${EventType}`;
+const CATEGORY_OPTIONS: { value: CategoryFilter; label: string }[] = [
+  { value: "all", label: "All categories" },
+  { value: "milestone", label: "Milestones" },
+  { value: "post", label: "Social posts" },
+  { value: "renewal", label: "Renewals" },
+  { value: "project", label: "Project due dates" },
+  { value: "event:team_holiday", label: "Team holidays" },
+  { value: "event:conference", label: "Conferences / Webinars" },
+  { value: "event:exhibition", label: "Exhibitions / Trade shows" },
+  { value: "bank_holiday", label: "UK bank holidays" },
+];
+
+const matchesCategory = (e: Ev, f: CategoryFilter) => {
+  if (f === "all") return true;
+  if (f.startsWith("event:")) return e.kind === "event" && e.eventType === f.slice(6);
+  return e.kind === f;
+};
 
 function CalendarPage() {
   const { user } = useAuth();
@@ -76,11 +109,11 @@ function CalendarPage() {
   const [eventRows, setEventRows] = useState<EventRow[]>([]);
   const { range } = useFiscalYear();
   const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
-  // Note: calendar always opens on the current month, not the fiscal year start.
   void range;
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [category, setCategory] = useState<CategoryFilter>("all");
 
   const load = async () => {
     const [{ data: ms }, { data: sp }, { data: subs }, { data: pr }, { data: ev }] = await Promise.all([
@@ -124,14 +157,24 @@ function CalendarPage() {
     return { year: y, month: m, days: Array.from({ length: lastDate }, (_, i) => i + 1), firstDow: (jsDow + 6) % 7 };
   }, [cursor]);
 
+  const filteredEvents = useMemo(() => events.filter((e) => matchesCategory(e, category)), [events, category]);
+
   const byDay = useMemo(() => {
     const map = new Map<string, Ev[]>();
-    events.forEach((e) => { const arr = map.get(e.date) ?? []; arr.push(e); map.set(e.date, arr); });
+    filteredEvents.forEach((e) => { const arr = map.get(e.date) ?? []; arr.push(e); map.set(e.date, arr); });
     return map;
-  }, [events]);
+  }, [filteredEvents]);
 
   const monthName = cursor.toLocaleString("en-GB", { month: "long", year: "numeric" });
   const today = new Date().toISOString().slice(0, 10);
+  const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const monthCount = useMemo(
+    () => filteredEvents.filter((e) => e.date.startsWith(monthPrefix)).length,
+    [filteredEvents, monthPrefix],
+  );
+
+  const todayItems = useMemo(() => filteredEvents.filter((e) => e.date === today), [filteredEvents, today]);
+  const todayLabel = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 
   const selectedItems = selectedDate ? byDay.get(selectedDate) ?? [] : [];
   const selectedEvents = selectedDate
@@ -151,60 +194,143 @@ function CalendarPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-baseline justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Calendar</h1>
-          <p className="text-muted-foreground mt-1">Events, milestones, posts, renewals and deadlines.</p>
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Select value={category} onValueChange={(v) => setCategory(v as CategoryFilter)}>
+            <SelectTrigger className="w-[180px] bg-card border-border/60 rounded-xl shadow-sm font-medium">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center bg-card border border-border/60 rounded-xl p-1 shadow-sm">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" aria-label="Previous month" onClick={() => setCursor(new Date(year, month - 1, 1))}>
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="px-4 text-sm font-semibold text-primary min-w-32 text-center">{monthName}</span>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" aria-label="Next month" onClick={() => setCursor(new Date(year, month + 1, 1))}>
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" aria-label="Previous month" onClick={() => setCursor(new Date(year, month - 1, 1))}><ChevronLeft className="size-4" /></Button>
-          <div className="font-medium w-40 text-center">{monthName}</div>
-          <Button variant="outline" size="icon" aria-label="Next month" onClick={() => setCursor(new Date(year, month + 1, 1))}><ChevronRight className="size-4" /></Button>
-          <Button variant="ghost" size="sm" onClick={() => { const d = new Date(); setCursor(new Date(d.getFullYear(), d.getMonth(), 1)); }}>Today</Button>
-          <Button className="bg-gradient-primary text-primary-foreground" size="sm" onClick={() => { setEditing(null); setDialogOpen(true); }}>
+          <Button variant="outline" className="rounded-full font-semibold" onClick={() => { const d = new Date(); setCursor(new Date(d.getFullYear(), d.getMonth(), 1)); }}>Today</Button>
+          <Button className="rounded-full font-semibold bg-primary text-primary-foreground shadow-lg hover:opacity-90" onClick={() => { setEditing(null); setDialogOpen(true); }}>
             <Plus className="size-4 mr-1" />New event
           </Button>
         </div>
       </div>
 
-      <Card className="shadow-soft">
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-2 mb-4">
-            {KIND_LEGEND.map((l) => (
-              <Badge key={l.label} variant="secondary" className={`text-[10px] ${colorFor(l.sample)}`}>{l.label}</Badge>
+      {/* Main layout */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* Grid */}
+        <div className="flex-1 w-full bg-card rounded-2xl border border-border/60 shadow-soft overflow-hidden">
+          <div className="grid grid-cols-7 border-b border-border/60">
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+              <div key={d} className="py-3 text-center text-[10px] font-bold text-primary/40 uppercase tracking-widest">{d}</div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-1 text-xs font-medium text-muted-foreground mb-2">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d} className="px-2 py-1">{d}</div>)}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: firstDow }).map((_, i) => <div key={`pad-${i}`} />)}
-            {days.map((d) => {
+          <div className="grid grid-cols-7 auto-rows-fr">
+            {Array.from({ length: firstDow }).map((_, i) => (
+              <div key={`pad-${i}`} className="min-h-24 border-r border-b border-border/40 bg-background/30" />
+            ))}
+            {days.map((d, idx) => {
               const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
               const evs = byDay.get(dateStr) ?? [];
               const isToday = dateStr === today;
               const isSelected = dateStr === selectedDate;
+              const col = (firstDow + idx) % 7;
+              const isLastCol = col === 6;
               return (
                 <button
                   key={d}
                   type="button"
                   onClick={() => setSelectedDate(dateStr)}
-                  className={`min-h-24 rounded-lg border p-1.5 text-left transition-colors hover:border-primary ${isSelected ? "border-primary ring-2 ring-primary/30" : isToday ? "border-primary bg-primary/5" : "bg-card"}`}
+                  className={`min-h-24 border-b border-border/40 p-2 text-left transition-colors ${!isLastCol ? "border-r" : ""} ${isSelected ? "bg-primary/10 ring-1 ring-inset ring-primary/30" : isToday ? "bg-primary/5" : "hover:bg-background/60"}`}
                 >
-                  <div className={`text-xs font-medium ${isToday ? "text-primary" : "text-muted-foreground"}`}>{d}</div>
+                  <div className="flex items-center">
+                    {isToday ? (
+                      <span className="w-7 h-7 flex items-center justify-center bg-primary text-primary-foreground text-xs font-bold rounded-full">{d}</span>
+                    ) : (
+                      <span className="text-sm font-medium text-primary/80 px-1">{d}</span>
+                    )}
+                  </div>
                   <div className="space-y-0.5 mt-1">
                     {evs.slice(0, 3).map((e, i) => (
-                      <Badge key={i} variant="secondary" className={`text-[10px] block truncate w-full justify-start ${colorFor(e)}`} title={e.label}>{e.label}</Badge>
+                      <div key={i} className={`text-[10px] font-semibold rounded-md border px-2 py-0.5 truncate ${chipFor(e)}`} title={e.label}>{e.label}</div>
                     ))}
-                    {evs.length > 3 && <p className="text-[10px] text-muted-foreground">+{evs.length - 3} more</p>}
+                    {evs.length > 3 && <p className="text-[10px] text-muted-foreground pl-1">+{evs.length - 3} more</p>}
                   </div>
                 </button>
               );
             })}
           </div>
-        </CardContent>
-      </Card>
 
+          {/* Legend */}
+          <div className="p-4 bg-background/50 border-t border-border/60 flex flex-wrap gap-4">
+            {KIND_LEGEND.map((l) => (
+              <div key={l.label} className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${dotFor(l.sample)}`} />
+                <span className="text-[10px] font-bold text-primary/60 uppercase tracking-tight">{l.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <aside className="w-full lg:w-80 flex flex-col gap-6 shrink-0">
+          <div className="bg-card p-6 rounded-2xl border border-border/60 shadow-soft">
+            <div className="flex items-baseline justify-between mb-4">
+              <h3 className="text-lg font-bold text-primary">Today's Schedule</h3>
+              <span className="text-[10px] font-bold text-primary/40 uppercase tracking-widest">{todayLabel}</span>
+            </div>
+            {todayItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Nothing scheduled for today.</p>
+            ) : (
+              <div className="space-y-3">
+                {todayItems.map((e, i) => {
+                  const kindLabel = e.kind === "event" ? eventTypeLabel(e.eventType) : e.kind === "post" ? "Social Post" : e.kind === "milestone" ? "Milestone" : e.kind === "renewal" ? "Renewal" : e.kind === "project" ? "Project Due" : "Bank Holiday";
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setSelectedDate(today)}
+                      className="w-full flex items-start gap-3 p-3 rounded-xl bg-background/50 border border-border/40 hover:border-primary/30 transition-colors text-left"
+                    >
+                      <div className={`mt-1 w-1.5 h-10 rounded-full flex-shrink-0 ${dotFor(e)}`} />
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold text-primary/40 uppercase tracking-wider mb-0.5">{kindLabel}</div>
+                        <div className="text-sm font-semibold text-primary leading-tight break-words">{e.label}</div>
+                        {e.detail && <div className="text-[11px] text-primary/60 mt-1 line-clamp-2">{e.detail}</div>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              className="w-full mt-6 py-3 border-2 border-dashed border-border text-primary/50 font-bold text-xs uppercase tracking-widest rounded-xl hover:border-primary/30 hover:text-primary/80 hover:bg-transparent"
+              onClick={() => { setEditing(null); setSelectedDate(today); setDialogOpen(true); }}
+            >
+              + Add to today
+            </Button>
+          </div>
+
+          <div className="bg-primary text-primary-foreground p-6 rounded-2xl shadow-lg">
+            <div className="text-[10px] font-bold opacity-60 uppercase tracking-widest mb-1">Monthly Overview</div>
+            <div className="text-2xl font-bold">{monthCount} {monthCount === 1 ? "item" : "items"}</div>
+            <div className="mt-4 h-1.5 w-full bg-primary-foreground/10 rounded-full overflow-hidden">
+              <div className="h-full bg-primary-foreground rounded-full" style={{ width: `${Math.min(100, monthCount * 5)}%` }} />
+            </div>
+            <div className="mt-2 text-xs opacity-80">Activity across {monthName}</div>
+          </div>
+        </aside>
+      </div>
+
+      {/* Day details sheet */}
       <Sheet open={!!selectedDate} onOpenChange={(o) => !o && setSelectedDate(null)}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
@@ -221,7 +347,7 @@ function CalendarPage() {
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold">UK bank holiday</h3>
                 {selectedBankHols.map((h) => (
-                  <div key={h.date + h.title} className={`rounded-md border p-2 text-sm ${colorFor({ kind: "bank_holiday" })}`}>🇬🇧 {h.title}</div>
+                  <div key={h.date + h.title} className={`rounded-md border p-2 text-sm ${chipFor({ kind: "bank_holiday" })}`}>🇬🇧 {h.title}</div>
                 ))}
               </div>
             )}
@@ -236,7 +362,7 @@ function CalendarPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <p className="font-medium">{e.title}</p>
-                            <Badge variant="secondary" className={`text-[10px] ${colorFor({ kind: "event", eventType: (e.event_type as EventType | null) })}`}>{eventTypeLabel(e.event_type)}</Badge>
+                            <Badge variant="secondary" className={`text-[10px] ${chipFor({ kind: "event", eventType: (e.event_type as EventType | null) })}`}>{eventTypeLabel(e.event_type)}</Badge>
                           </div>
                           {e.end_date && e.end_date > e.event_date && (
                             <p className="text-xs text-muted-foreground">
@@ -267,14 +393,14 @@ function CalendarPage() {
                 <h3 className="text-sm font-semibold">Other items</h3>
                 {selectedItems.filter((i) => i.kind !== "event" && i.kind !== "bank_holiday").map((i, idx) => (
                   <div key={idx} className="rounded-md border p-2 text-sm flex items-center gap-2">
-                    <Badge variant="secondary" className={`text-[10px] capitalize ${colorFor(i)}`}>{i.kind}</Badge>
+                    <Badge variant="secondary" className={`text-[10px] capitalize ${chipFor(i)}`}>{i.kind}</Badge>
                     <span>{i.label}</span>
                   </div>
                 ))}
               </div>
             )}
 
-            {selectedItems.length === 0 && (
+            {selectedItems.length === 0 && selectedEvents.length === 0 && selectedBankHols.length === 0 && (
               <p className="text-sm text-muted-foreground">Nothing scheduled. Add an event to get started.</p>
             )}
           </div>
