@@ -943,6 +943,155 @@ export type Database = {
           },
         ]
       }
+      lead_field_labels: {
+        Row: {
+          created_at: string
+          field_key: string
+          id: string
+          label: string
+          position: number
+          tenant_id: string
+          visible: boolean
+        }
+        Insert: {
+          created_at?: string
+          field_key: string
+          id?: string
+          label: string
+          position?: number
+          tenant_id?: string
+          visible?: boolean
+        }
+        Update: {
+          created_at?: string
+          field_key?: string
+          id?: string
+          label?: string
+          position?: number
+          tenant_id?: string
+          visible?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_field_labels_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_next_action_options: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          label: string
+          position: number
+          tenant_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          label: string
+          position?: number
+          tenant_id?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          label?: string
+          position?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_next_action_options_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_pipeline_status_options: {
+        Row: {
+          active: boolean
+          color: string
+          created_at: string
+          id: string
+          key: string
+          label: string
+          position: number
+          tenant_id: string
+        }
+        Insert: {
+          active?: boolean
+          color?: string
+          created_at?: string
+          id?: string
+          key: string
+          label: string
+          position?: number
+          tenant_id?: string
+        }
+        Update: {
+          active?: boolean
+          color?: string
+          created_at?: string
+          id?: string
+          key?: string
+          label?: string
+          position?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_pipeline_status_options_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_source_options: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          label: string
+          position: number
+          tenant_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          label: string
+          position?: number
+          tenant_id?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          label?: string
+          position?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_source_options_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_status_options: {
         Row: {
           id: string
@@ -971,6 +1120,121 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "lead_status_options_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          assigned_to: string | null
+          company_name: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          first_name: string
+          id: string
+          intent: string | null
+          job_title: string | null
+          last_name: string
+          next_action_date: string | null
+          next_action_id: string | null
+          notes: string | null
+          opportunity_gbp: number | null
+          organisation_id: string | null
+          phone: string | null
+          source_id: string | null
+          status_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          company_name?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          intent?: string | null
+          job_title?: string | null
+          last_name?: string
+          next_action_date?: string | null
+          next_action_id?: string | null
+          notes?: string | null
+          opportunity_gbp?: number | null
+          organisation_id?: string | null
+          phone?: string | null
+          source_id?: string | null
+          status_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          company_name?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          intent?: string | null
+          job_title?: string | null
+          last_name?: string
+          next_action_date?: string | null
+          next_action_id?: string | null
+          notes?: string | null
+          opportunity_gbp?: number | null
+          organisation_id?: string | null
+          phone?: string | null
+          source_id?: string | null
+          status_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_next_action_id_fkey"
+            columns: ["next_action_id"]
+            isOneToOne: false
+            referencedRelation: "lead_next_action_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "lead_source_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_status_id_fkey"
+            columns: ["status_id"]
+            isOneToOne: false
+            referencedRelation: "lead_pipeline_status_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1788,6 +2052,10 @@ export type Database = {
         }[]
       }
       seed_issue_columns_for_tenant: {
+        Args: { _tenant_id: string }
+        Returns: undefined
+      }
+      seed_lead_defaults_for_tenant: {
         Args: { _tenant_id: string }
         Returns: undefined
       }
