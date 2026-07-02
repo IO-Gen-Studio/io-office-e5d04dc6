@@ -120,18 +120,26 @@ function CalendarPage() {
   const [category, setCategory] = useState<CategoryFilter>("all");
 
   const load = async () => {
-    const [{ data: ms }, { data: sp }, { data: subs }, { data: pr }, { data: ev }] = await Promise.all([
+    const [{ data: ms }, { data: sp }, { data: subs }, { data: pr }, { data: ev }, { data: lds }, { data: lact }] = await Promise.all([
       supabase.from("milestones").select("label,due_date").not("due_date", "is", null),
       supabase.from("social_plans").select("platform,scheduled_at,copy,title").not("scheduled_at", "is", null),
       supabase.from("subscriptions").select("plan_name,renewal_date").not("renewal_date", "is", null),
       supabase.from("projects").select("title,end_date").not("end_date", "is", null),
       supabase.from("events").select("*").order("event_date"),
+      supabase.from("leads").select("first_name,last_name,company_name,next_action_date,next_action_id").not("next_action_date", "is", null),
+      supabase.from("lead_next_action_options").select("id,label"),
     ]);
     const out: Ev[] = [];
     (ms ?? []).forEach((m) => out.push({ date: m.due_date as string, label: `Milestone: ${m.label}`, kind: "milestone" }));
     (sp ?? []).forEach((s) => out.push({ date: (s.scheduled_at as string).slice(0, 10), label: `${s.platform}: ${(s.title || s.copy || "").slice(0, 40)}`, kind: "post" }));
     (subs ?? []).forEach((s) => out.push({ date: s.renewal_date as string, label: `Renewal: ${s.plan_name}`, kind: "renewal" }));
     (pr ?? []).forEach((p) => out.push({ date: p.end_date as string, label: `Due: ${p.title}`, kind: "project" }));
+    const actionMap = new Map((lact ?? []).map((a) => [a.id as string, a.label as string]));
+    (lds ?? []).forEach((l) => {
+      const who = `${l.first_name ?? ""} ${l.last_name ?? ""}`.trim() || (l.company_name ?? "Lead");
+      const act = l.next_action_id ? actionMap.get(l.next_action_id as string) : null;
+      out.push({ date: l.next_action_date as string, label: `Lead: ${act ? act + " · " : ""}${who}`, kind: "lead_action" });
+    });
     const evs = (ev ?? []) as EventRow[];
     setEventRows(evs);
     evs.forEach((e) => {
