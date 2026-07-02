@@ -30,7 +30,7 @@ const EVENT_TYPE_OPTIONS: { value: EventType; label: string }[] = [
 const eventTypeLabel = (v: string | null | undefined) =>
   EVENT_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? "General";
 
-type EvKind = "milestone" | "post" | "renewal" | "project" | "event" | "bank_holiday";
+type EvKind = "milestone" | "post" | "renewal" | "project" | "event" | "bank_holiday" | "lead_action";
 type Ev = {
   date: string; label: string; detail?: string;
   kind: EvKind; eventType?: EventType | null; eventId?: string;
@@ -50,6 +50,7 @@ const chipFor = (e: Pick<Ev, "kind" | "eventType">): string => {
   if (e.kind === "post") return "bg-emerald-100 text-emerald-700 border-emerald-200";
   if (e.kind === "renewal") return "bg-amber-100 text-amber-700 border-amber-200";
   if (e.kind === "project") return "bg-blue-100 text-blue-700 border-blue-200";
+  if (e.kind === "lead_action") return "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200";
   switch (e.eventType) {
     case "team_holiday": return "bg-rose-100 text-rose-700 border-rose-200";
     case "conference": return "bg-cyan-100 text-cyan-700 border-cyan-200";
@@ -65,6 +66,7 @@ const dotFor = (e: Pick<Ev, "kind" | "eventType">): string => {
   if (e.kind === "post") return "bg-emerald-500";
   if (e.kind === "renewal") return "bg-amber-500";
   if (e.kind === "project") return "bg-blue-500";
+  if (e.kind === "lead_action") return "bg-fuchsia-500";
   switch (e.eventType) {
     case "team_holiday": return "bg-rose-500";
     case "conference": return "bg-cyan-500";
@@ -78,6 +80,7 @@ const KIND_LEGEND: { label: string; sample: Pick<Ev, "kind" | "eventType"> }[] =
   { label: "Social post", sample: { kind: "post" } },
   { label: "Renewal", sample: { kind: "renewal" } },
   { label: "Project due", sample: { kind: "project" } },
+  { label: "Lead action", sample: { kind: "lead_action" } },
   { label: "Team holiday", sample: { kind: "event", eventType: "team_holiday" } },
   { label: "Conference", sample: { kind: "event", eventType: "conference" } },
   { label: "Exhibition", sample: { kind: "event", eventType: "exhibition" } },
@@ -91,6 +94,7 @@ const CATEGORY_OPTIONS: { value: CategoryFilter; label: string }[] = [
   { value: "post", label: "Social posts" },
   { value: "renewal", label: "Renewals" },
   { value: "project", label: "Project due dates" },
+  { value: "lead_action", label: "Lead actions" },
   { value: "event:team_holiday", label: "Team holidays" },
   { value: "event:conference", label: "Conferences / Webinars" },
   { value: "event:exhibition", label: "Exhibitions / Trade shows" },
@@ -116,18 +120,26 @@ function CalendarPage() {
   const [category, setCategory] = useState<CategoryFilter>("all");
 
   const load = async () => {
-    const [{ data: ms }, { data: sp }, { data: subs }, { data: pr }, { data: ev }] = await Promise.all([
+    const [{ data: ms }, { data: sp }, { data: subs }, { data: pr }, { data: ev }, { data: lds }, { data: lact }] = await Promise.all([
       supabase.from("milestones").select("label,due_date").not("due_date", "is", null),
       supabase.from("social_plans").select("platform,scheduled_at,copy,title").not("scheduled_at", "is", null),
       supabase.from("subscriptions").select("plan_name,renewal_date").not("renewal_date", "is", null),
       supabase.from("projects").select("title,end_date").not("end_date", "is", null),
       supabase.from("events").select("*").order("event_date"),
+      supabase.from("leads").select("first_name,last_name,company_name,next_action_date,next_action_id").not("next_action_date", "is", null),
+      supabase.from("lead_next_action_options").select("id,label"),
     ]);
     const out: Ev[] = [];
     (ms ?? []).forEach((m) => out.push({ date: m.due_date as string, label: `Milestone: ${m.label}`, kind: "milestone" }));
     (sp ?? []).forEach((s) => out.push({ date: (s.scheduled_at as string).slice(0, 10), label: `${s.platform}: ${(s.title || s.copy || "").slice(0, 40)}`, kind: "post" }));
     (subs ?? []).forEach((s) => out.push({ date: s.renewal_date as string, label: `Renewal: ${s.plan_name}`, kind: "renewal" }));
     (pr ?? []).forEach((p) => out.push({ date: p.end_date as string, label: `Due: ${p.title}`, kind: "project" }));
+    const actionMap = new Map((lact ?? []).map((a) => [a.id as string, a.label as string]));
+    (lds ?? []).forEach((l) => {
+      const who = `${l.first_name ?? ""} ${l.last_name ?? ""}`.trim() || (l.company_name ?? "Lead");
+      const act = l.next_action_id ? actionMap.get(l.next_action_id as string) : null;
+      out.push({ date: l.next_action_date as string, label: `Lead: ${act ? act + " · " : ""}${who}`, kind: "lead_action" });
+    });
     const evs = (ev ?? []) as EventRow[];
     setEventRows(evs);
     evs.forEach((e) => {

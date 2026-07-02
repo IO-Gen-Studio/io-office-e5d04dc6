@@ -19,6 +19,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
 import { Route as AuthenticatedOutreachRouteImport } from './routes/_authenticated/outreach'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
+import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedIssuesRouteImport } from './routes/_authenticated/issues'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
@@ -28,6 +29,7 @@ import { Route as AuthenticatedSettingsTenantsRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
 import { Route as AuthenticatedSettingsPlansRouteImport } from './routes/_authenticated/settings.plans'
 import { Route as AuthenticatedSettingsMilestonesRouteImport } from './routes/_authenticated/settings.milestones'
+import { Route as AuthenticatedSettingsLeadsRouteImport } from './routes/_authenticated/settings.leads'
 import { Route as AuthenticatedSettingsFiscalYearRouteImport } from './routes/_authenticated/settings.fiscal-year'
 import { Route as AuthenticatedSettingsFieldsRouteImport } from './routes/_authenticated/settings.fields'
 import { Route as AuthenticatedSettingsCostProposalRouteImport } from './routes/_authenticated/settings.cost-proposal'
@@ -84,6 +86,11 @@ const AuthenticatedNotificationsRoute =
     path: '/notifications',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedIssuesRoute = AuthenticatedIssuesRouteImport.update({
   id: '/issues',
   path: '/issues',
@@ -134,6 +141,12 @@ const AuthenticatedSettingsMilestonesRoute =
     path: '/milestones',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSettingsLeadsRoute =
+  AuthenticatedSettingsLeadsRouteImport.update({
+    id: '/leads',
+    path: '/leads',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedSettingsFiscalYearRoute =
   AuthenticatedSettingsFiscalYearRouteImport.update({
     id: '/fiscal-year',
@@ -167,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/issues': typeof AuthenticatedIssuesRoute
+  '/leads': typeof AuthenticatedLeadsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/outreach': typeof AuthenticatedOutreachRoute
   '/projects': typeof AuthenticatedProjectsRoute
@@ -176,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/settings/cost-proposal': typeof AuthenticatedSettingsCostProposalRoute
   '/settings/fields': typeof AuthenticatedSettingsFieldsRoute
   '/settings/fiscal-year': typeof AuthenticatedSettingsFiscalYearRoute
+  '/settings/leads': typeof AuthenticatedSettingsLeadsRoute
   '/settings/milestones': typeof AuthenticatedSettingsMilestonesRoute
   '/settings/plans': typeof AuthenticatedSettingsPlansRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
@@ -191,6 +206,7 @@ export interface FileRoutesByTo {
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/issues': typeof AuthenticatedIssuesRoute
+  '/leads': typeof AuthenticatedLeadsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/outreach': typeof AuthenticatedOutreachRoute
   '/projects': typeof AuthenticatedProjectsRoute
@@ -200,6 +216,7 @@ export interface FileRoutesByTo {
   '/settings/cost-proposal': typeof AuthenticatedSettingsCostProposalRoute
   '/settings/fields': typeof AuthenticatedSettingsFieldsRoute
   '/settings/fiscal-year': typeof AuthenticatedSettingsFiscalYearRoute
+  '/settings/leads': typeof AuthenticatedSettingsLeadsRoute
   '/settings/milestones': typeof AuthenticatedSettingsMilestonesRoute
   '/settings/plans': typeof AuthenticatedSettingsPlansRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
@@ -217,6 +234,7 @@ export interface FileRoutesById {
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/issues': typeof AuthenticatedIssuesRoute
+  '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/outreach': typeof AuthenticatedOutreachRoute
   '/_authenticated/projects': typeof AuthenticatedProjectsRoute
@@ -226,6 +244,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/cost-proposal': typeof AuthenticatedSettingsCostProposalRoute
   '/_authenticated/settings/fields': typeof AuthenticatedSettingsFieldsRoute
   '/_authenticated/settings/fiscal-year': typeof AuthenticatedSettingsFiscalYearRoute
+  '/_authenticated/settings/leads': typeof AuthenticatedSettingsLeadsRoute
   '/_authenticated/settings/milestones': typeof AuthenticatedSettingsMilestonesRoute
   '/_authenticated/settings/plans': typeof AuthenticatedSettingsPlansRoute
   '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
@@ -243,6 +262,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/dashboard'
     | '/issues'
+    | '/leads'
     | '/notifications'
     | '/outreach'
     | '/projects'
@@ -252,6 +272,7 @@ export interface FileRouteTypes {
     | '/settings/cost-proposal'
     | '/settings/fields'
     | '/settings/fiscal-year'
+    | '/settings/leads'
     | '/settings/milestones'
     | '/settings/plans'
     | '/settings/profile'
@@ -267,6 +288,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/dashboard'
     | '/issues'
+    | '/leads'
     | '/notifications'
     | '/outreach'
     | '/projects'
@@ -276,6 +298,7 @@ export interface FileRouteTypes {
     | '/settings/cost-proposal'
     | '/settings/fields'
     | '/settings/fiscal-year'
+    | '/settings/leads'
     | '/settings/milestones'
     | '/settings/plans'
     | '/settings/profile'
@@ -292,6 +315,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crm'
     | '/_authenticated/dashboard'
     | '/_authenticated/issues'
+    | '/_authenticated/leads'
     | '/_authenticated/notifications'
     | '/_authenticated/outreach'
     | '/_authenticated/projects'
@@ -301,6 +325,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/cost-proposal'
     | '/_authenticated/settings/fields'
     | '/_authenticated/settings/fiscal-year'
+    | '/_authenticated/settings/leads'
     | '/_authenticated/settings/milestones'
     | '/_authenticated/settings/plans'
     | '/_authenticated/settings/profile'
@@ -389,6 +414,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/leads': {
+      id: '/_authenticated/leads'
+      path: '/leads'
+      fullPath: '/leads'
+      preLoaderRoute: typeof AuthenticatedLeadsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/issues': {
       id: '/_authenticated/issues'
       path: '/issues'
@@ -452,6 +484,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsMilestonesRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/settings/leads': {
+      id: '/_authenticated/settings/leads'
+      path: '/leads'
+      fullPath: '/settings/leads'
+      preLoaderRoute: typeof AuthenticatedSettingsLeadsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/settings/fiscal-year': {
       id: '/_authenticated/settings/fiscal-year'
       path: '/fiscal-year'
@@ -487,6 +526,7 @@ interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsCostProposalRoute: typeof AuthenticatedSettingsCostProposalRoute
   AuthenticatedSettingsFieldsRoute: typeof AuthenticatedSettingsFieldsRoute
   AuthenticatedSettingsFiscalYearRoute: typeof AuthenticatedSettingsFiscalYearRoute
+  AuthenticatedSettingsLeadsRoute: typeof AuthenticatedSettingsLeadsRoute
   AuthenticatedSettingsMilestonesRoute: typeof AuthenticatedSettingsMilestonesRoute
   AuthenticatedSettingsPlansRoute: typeof AuthenticatedSettingsPlansRoute
   AuthenticatedSettingsProfileRoute: typeof AuthenticatedSettingsProfileRoute
@@ -499,6 +539,7 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
     AuthenticatedSettingsCostProposalRoute,
   AuthenticatedSettingsFieldsRoute: AuthenticatedSettingsFieldsRoute,
   AuthenticatedSettingsFiscalYearRoute: AuthenticatedSettingsFiscalYearRoute,
+  AuthenticatedSettingsLeadsRoute: AuthenticatedSettingsLeadsRoute,
   AuthenticatedSettingsMilestonesRoute: AuthenticatedSettingsMilestonesRoute,
   AuthenticatedSettingsPlansRoute: AuthenticatedSettingsPlansRoute,
   AuthenticatedSettingsProfileRoute: AuthenticatedSettingsProfileRoute,
@@ -516,6 +557,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedIssuesRoute: typeof AuthenticatedIssuesRoute
+  AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedOutreachRoute: typeof AuthenticatedOutreachRoute
   AuthenticatedProjectsRoute: typeof AuthenticatedProjectsRoute
@@ -529,6 +571,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedIssuesRoute: AuthenticatedIssuesRoute,
+  AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedOutreachRoute: AuthenticatedOutreachRoute,
   AuthenticatedProjectsRoute: AuthenticatedProjectsRoute,

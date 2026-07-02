@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/DataTable";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { CustomFieldValues } from "@/components/CustomFieldValues";
 import { useCustomFieldColumns } from "@/components/CustomFieldDisplay";
@@ -177,6 +177,20 @@ function ContactsTab({ editable }: { editable: boolean }) {
     toast.success("Deleted"); void load();
   };
 
+  const convertToLead = async (c: Contact) => {
+    if (!confirm(`Add "${c.first_name} ${c.last_name}" as a lead?`)) return;
+    const { data: existing } = await supabase.from("leads").select("id").eq("contact_id", c.id).maybeSingle();
+    if (existing) { toast.info("This contact is already a lead."); return; }
+    const { error } = await supabase.from("leads").insert({
+      contact_id: c.id, organisation_id: c.organisation_id,
+      first_name: c.first_name, last_name: c.last_name,
+      email: c.email, phone: c.phone, job_title: c.job_title,
+    } as never);
+    if (error) { toast.error(error.message); return; }
+    if (!c.is_lead) await supabase.from("contacts").update({ is_lead: true }).eq("id", c.id);
+    toast.success("Added to Leads"); void load();
+  };
+
   const saveCell = async (row: Contact, key: string, value: unknown) => {
     const { error } = await supabase.from("contacts").update({ [key]: value } as never).eq("id", row.id);
     if (error) { toast.error(error.message); return; }
@@ -221,6 +235,7 @@ function ContactsTab({ editable }: { editable: boolean }) {
           toolbarLeft={editable && <Button className="bg-gradient-primary text-primary-foreground" onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4 mr-2" />New contact</Button>}
           actions={editable ? (c) => (
             <>
+              <Button variant="ghost" size="icon" aria-label="Add as lead" title="Add as lead" onClick={() => convertToLead(c)}><UserPlus className="size-4" /></Button>
               <Button variant="ghost" size="icon" aria-label="Edit contact" onClick={() => { setEditing(c); setOpen(true); }}><Pencil className="size-4" /></Button>
               <Button variant="ghost" size="icon" aria-label="Delete contact" onClick={() => remove(c)}><Trash2 className="size-4" /></Button>
             </>

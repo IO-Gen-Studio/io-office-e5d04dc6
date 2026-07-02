@@ -16,6 +16,7 @@ function SettingsLayout() {
       { to: "/settings/milestones", label: "Milestones" },
       { to: "/settings/plans", label: "Subscription Plans" },
       { to: "/settings/cost-proposal", label: "Cost Proposal" },
+      { to: "/settings/leads", label: "Leads" },
       { to: "/settings/fiscal-year", label: "Financial Year" },
     ] : []),
   ];
