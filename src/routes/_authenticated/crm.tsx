@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/DataTable";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { CustomFieldValues } from "@/components/CustomFieldValues";
 import { useCustomFieldColumns } from "@/components/CustomFieldDisplay";
