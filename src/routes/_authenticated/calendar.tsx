@@ -94,6 +94,7 @@ const CATEGORY_OPTIONS: { value: CategoryFilter; label: string }[] = [
   { value: "post", label: "Social posts" },
   { value: "renewal", label: "Renewals" },
   { value: "project", label: "Project due dates" },
+  { value: "lead_action", label: "Lead actions" },
   { value: "event:team_holiday", label: "Team holidays" },
   { value: "event:conference", label: "Conferences / Webinars" },
   { value: "event:exhibition", label: "Exhibitions / Trade shows" },
