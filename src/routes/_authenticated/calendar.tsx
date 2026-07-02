@@ -66,6 +66,7 @@ const dotFor = (e: Pick<Ev, "kind" | "eventType">): string => {
   if (e.kind === "post") return "bg-emerald-500";
   if (e.kind === "renewal") return "bg-amber-500";
   if (e.kind === "project") return "bg-blue-500";
+  if (e.kind === "lead_action") return "bg-fuchsia-500";
   switch (e.eventType) {
     case "team_holiday": return "bg-rose-500";
     case "conference": return "bg-cyan-500";
