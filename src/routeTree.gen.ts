@@ -19,6 +19,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
 import { Route as AuthenticatedOutreachRouteImport } from './routes/_authenticated/outreach'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
+import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedIssuesRouteImport } from './routes/_authenticated/issues'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
@@ -84,6 +85,11 @@ const AuthenticatedNotificationsRoute =
     path: '/notifications',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedIssuesRoute = AuthenticatedIssuesRouteImport.update({
   id: '/issues',
   path: '/issues',
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/issues': typeof AuthenticatedIssuesRoute
+  '/leads': typeof AuthenticatedLeadsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/outreach': typeof AuthenticatedOutreachRoute
   '/projects': typeof AuthenticatedProjectsRoute
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/issues': typeof AuthenticatedIssuesRoute
+  '/leads': typeof AuthenticatedLeadsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/outreach': typeof AuthenticatedOutreachRoute
   '/projects': typeof AuthenticatedProjectsRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/issues': typeof AuthenticatedIssuesRoute
+  '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/outreach': typeof AuthenticatedOutreachRoute
   '/_authenticated/projects': typeof AuthenticatedProjectsRoute
@@ -243,6 +252,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/dashboard'
     | '/issues'
+    | '/leads'
     | '/notifications'
     | '/outreach'
     | '/projects'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/dashboard'
     | '/issues'
+    | '/leads'
     | '/notifications'
     | '/outreach'
     | '/projects'
@@ -292,6 +303,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crm'
     | '/_authenticated/dashboard'
     | '/_authenticated/issues'
+    | '/_authenticated/leads'
     | '/_authenticated/notifications'
     | '/_authenticated/outreach'
     | '/_authenticated/projects'
@@ -387,6 +399,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/leads': {
+      id: '/_authenticated/leads'
+      path: '/leads'
+      fullPath: '/leads'
+      preLoaderRoute: typeof AuthenticatedLeadsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/issues': {
@@ -516,6 +535,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedIssuesRoute: typeof AuthenticatedIssuesRoute
+  AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedOutreachRoute: typeof AuthenticatedOutreachRoute
   AuthenticatedProjectsRoute: typeof AuthenticatedProjectsRoute
@@ -529,6 +549,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedIssuesRoute: AuthenticatedIssuesRoute,
+  AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedOutreachRoute: AuthenticatedOutreachRoute,
   AuthenticatedProjectsRoute: AuthenticatedProjectsRoute,
