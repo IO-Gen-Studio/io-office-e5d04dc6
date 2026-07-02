@@ -29,6 +29,7 @@ import { Route as AuthenticatedSettingsTenantsRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
 import { Route as AuthenticatedSettingsPlansRouteImport } from './routes/_authenticated/settings.plans'
 import { Route as AuthenticatedSettingsMilestonesRouteImport } from './routes/_authenticated/settings.milestones'
+import { Route as AuthenticatedSettingsLeadsRouteImport } from './routes/_authenticated/settings.leads'
 import { Route as AuthenticatedSettingsFiscalYearRouteImport } from './routes/_authenticated/settings.fiscal-year'
 import { Route as AuthenticatedSettingsFieldsRouteImport } from './routes/_authenticated/settings.fields'
 import { Route as AuthenticatedSettingsCostProposalRouteImport } from './routes/_authenticated/settings.cost-proposal'
@@ -140,6 +141,12 @@ const AuthenticatedSettingsMilestonesRoute =
     path: '/milestones',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSettingsLeadsRoute =
+  AuthenticatedSettingsLeadsRouteImport.update({
+    id: '/leads',
+    path: '/leads',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedSettingsFiscalYearRoute =
   AuthenticatedSettingsFiscalYearRouteImport.update({
     id: '/fiscal-year',
@@ -183,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/settings/cost-proposal': typeof AuthenticatedSettingsCostProposalRoute
   '/settings/fields': typeof AuthenticatedSettingsFieldsRoute
   '/settings/fiscal-year': typeof AuthenticatedSettingsFiscalYearRoute
+  '/settings/leads': typeof AuthenticatedSettingsLeadsRoute
   '/settings/milestones': typeof AuthenticatedSettingsMilestonesRoute
   '/settings/plans': typeof AuthenticatedSettingsPlansRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
@@ -208,6 +216,7 @@ export interface FileRoutesByTo {
   '/settings/cost-proposal': typeof AuthenticatedSettingsCostProposalRoute
   '/settings/fields': typeof AuthenticatedSettingsFieldsRoute
   '/settings/fiscal-year': typeof AuthenticatedSettingsFiscalYearRoute
+  '/settings/leads': typeof AuthenticatedSettingsLeadsRoute
   '/settings/milestones': typeof AuthenticatedSettingsMilestonesRoute
   '/settings/plans': typeof AuthenticatedSettingsPlansRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
@@ -235,6 +244,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/cost-proposal': typeof AuthenticatedSettingsCostProposalRoute
   '/_authenticated/settings/fields': typeof AuthenticatedSettingsFieldsRoute
   '/_authenticated/settings/fiscal-year': typeof AuthenticatedSettingsFiscalYearRoute
+  '/_authenticated/settings/leads': typeof AuthenticatedSettingsLeadsRoute
   '/_authenticated/settings/milestones': typeof AuthenticatedSettingsMilestonesRoute
   '/_authenticated/settings/plans': typeof AuthenticatedSettingsPlansRoute
   '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/settings/cost-proposal'
     | '/settings/fields'
     | '/settings/fiscal-year'
+    | '/settings/leads'
     | '/settings/milestones'
     | '/settings/plans'
     | '/settings/profile'
@@ -287,6 +298,7 @@ export interface FileRouteTypes {
     | '/settings/cost-proposal'
     | '/settings/fields'
     | '/settings/fiscal-year'
+    | '/settings/leads'
     | '/settings/milestones'
     | '/settings/plans'
     | '/settings/profile'
@@ -313,6 +325,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/cost-proposal'
     | '/_authenticated/settings/fields'
     | '/_authenticated/settings/fiscal-year'
+    | '/_authenticated/settings/leads'
     | '/_authenticated/settings/milestones'
     | '/_authenticated/settings/plans'
     | '/_authenticated/settings/profile'
@@ -471,6 +484,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsMilestonesRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/settings/leads': {
+      id: '/_authenticated/settings/leads'
+      path: '/leads'
+      fullPath: '/settings/leads'
+      preLoaderRoute: typeof AuthenticatedSettingsLeadsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/settings/fiscal-year': {
       id: '/_authenticated/settings/fiscal-year'
       path: '/fiscal-year'
@@ -506,6 +526,7 @@ interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsCostProposalRoute: typeof AuthenticatedSettingsCostProposalRoute
   AuthenticatedSettingsFieldsRoute: typeof AuthenticatedSettingsFieldsRoute
   AuthenticatedSettingsFiscalYearRoute: typeof AuthenticatedSettingsFiscalYearRoute
+  AuthenticatedSettingsLeadsRoute: typeof AuthenticatedSettingsLeadsRoute
   AuthenticatedSettingsMilestonesRoute: typeof AuthenticatedSettingsMilestonesRoute
   AuthenticatedSettingsPlansRoute: typeof AuthenticatedSettingsPlansRoute
   AuthenticatedSettingsProfileRoute: typeof AuthenticatedSettingsProfileRoute
@@ -518,6 +539,7 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
     AuthenticatedSettingsCostProposalRoute,
   AuthenticatedSettingsFieldsRoute: AuthenticatedSettingsFieldsRoute,
   AuthenticatedSettingsFiscalYearRoute: AuthenticatedSettingsFiscalYearRoute,
+  AuthenticatedSettingsLeadsRoute: AuthenticatedSettingsLeadsRoute,
   AuthenticatedSettingsMilestonesRoute: AuthenticatedSettingsMilestonesRoute,
   AuthenticatedSettingsPlansRoute: AuthenticatedSettingsPlansRoute,
   AuthenticatedSettingsProfileRoute: AuthenticatedSettingsProfileRoute,

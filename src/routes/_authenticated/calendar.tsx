@@ -30,7 +30,7 @@ const EVENT_TYPE_OPTIONS: { value: EventType; label: string }[] = [
 const eventTypeLabel = (v: string | null | undefined) =>
   EVENT_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? "General";
 
-type EvKind = "milestone" | "post" | "renewal" | "project" | "event" | "bank_holiday";
+type EvKind = "milestone" | "post" | "renewal" | "project" | "event" | "bank_holiday" | "lead_action";
 type Ev = {
   date: string; label: string; detail?: string;
   kind: EvKind; eventType?: EventType | null; eventId?: string;
