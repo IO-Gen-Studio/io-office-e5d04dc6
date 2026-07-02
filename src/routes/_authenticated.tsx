@@ -61,6 +61,7 @@ const NAV: NavItem[] = [
 ];
 const BIZ_DEV: NavItem[] = [
   { to: "/crm", label: "Contacts", icon: Users, module: "crm" },
+  { to: "/leads", label: "Leads", icon: Users, module: "crm" },
   { to: "/outreach", label: "Email Outreach", icon: Mail, module: "outreach" },
   { to: "/social", label: "Social Planner", icon: Megaphone, module: "social" },
 ];
