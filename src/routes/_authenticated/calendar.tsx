@@ -80,6 +80,7 @@ const KIND_LEGEND: { label: string; sample: Pick<Ev, "kind" | "eventType"> }[] =
   { label: "Social post", sample: { kind: "post" } },
   { label: "Renewal", sample: { kind: "renewal" } },
   { label: "Project due", sample: { kind: "project" } },
+  { label: "Lead action", sample: { kind: "lead_action" } },
   { label: "Team holiday", sample: { kind: "event", eventType: "team_holiday" } },
   { label: "Conference", sample: { kind: "event", eventType: "conference" } },
   { label: "Exhibition", sample: { kind: "event", eventType: "exhibition" } },
