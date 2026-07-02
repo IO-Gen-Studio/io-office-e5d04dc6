@@ -235,6 +235,7 @@ function ContactsTab({ editable }: { editable: boolean }) {
           toolbarLeft={editable && <Button className="bg-gradient-primary text-primary-foreground" onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4 mr-2" />New contact</Button>}
           actions={editable ? (c) => (
             <>
+              <Button variant="ghost" size="icon" aria-label="Add as lead" title="Add as lead" onClick={() => convertToLead(c)}><UserPlus className="size-4" /></Button>
               <Button variant="ghost" size="icon" aria-label="Edit contact" onClick={() => { setEditing(c); setOpen(true); }}><Pencil className="size-4" /></Button>
               <Button variant="ghost" size="icon" aria-label="Delete contact" onClick={() => remove(c)}><Trash2 className="size-4" /></Button>
             </>
