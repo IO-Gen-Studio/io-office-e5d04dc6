@@ -272,6 +272,27 @@ export const adminListUsers = createServerFn({ method: "POST" })
     await assertAdmin(context.userId);
     const superAdmin = await isSuperAdmin(context.userId);
 
+    // Non-super admins MUST provide a tenant_id and must be a member of it.
+    let tenantId = data.tenant_id;
+    if (!superAdmin) {
+      if (!tenantId) {
+        const { data: p } = await supabaseAdmin
+          .from("profiles")
+          .select("active_tenant_id")
+          .eq("id", context.userId)
+          .maybeSingle();
+        tenantId = (p?.active_tenant_id ?? undefined) as string | undefined;
+      }
+      if (!tenantId) throw new Error("Forbidden: tenant_id required");
+      const { data: callerMem } = await supabaseAdmin
+        .from("tenant_members")
+        .select("user_id")
+        .eq("user_id", context.userId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (!callerMem) throw new Error("Forbidden: not a member of that organisation");
+    }
+
     const [
       { data: profiles },
       { data: roles },
@@ -308,25 +329,34 @@ export const adminListUsers = createServerFn({ method: "POST" })
       // non-fatal — column will just show "—"
     }
 
-    // Non-super admins only see users in their tenant
-    const tenantId = data.tenant_id;
     let visibleProfiles = profiles ?? [];
+    let visibleRoles = roles ?? [];
+    let visibleAccess = access ?? [];
+    let visibleMembers = members ?? [];
+    let visibleSupers = superAdmin ? (supers ?? []) : [];
+
     if (!superAdmin && tenantId) {
       const memberIds = new Set(
         (members ?? []).filter((m) => m.tenant_id === tenantId).map((m) => m.user_id),
       );
       visibleProfiles = visibleProfiles.filter((p) => memberIds.has(p.id));
+      visibleMembers = (members ?? []).filter((m) => m.tenant_id === tenantId);
+      visibleAccess = (access ?? []).filter(
+        (a) => a.tenant_id === tenantId && memberIds.has(a.user_id),
+      );
+      visibleRoles = (roles ?? []).filter((r) => memberIds.has(r.user_id));
     }
+
     const profilesWithLogin = visibleProfiles.map((p) => ({
       ...p,
       last_sign_in_at: lastSignInById.get(p.id) ?? null,
     }));
     return {
       profiles: profilesWithLogin,
-      roles: roles ?? [],
-      access: access ?? [],
-      members: members ?? [],
-      supers: supers ?? [],
+      roles: visibleRoles,
+      access: visibleAccess,
+      members: visibleMembers,
+      supers: visibleSupers,
     };
   });
 
