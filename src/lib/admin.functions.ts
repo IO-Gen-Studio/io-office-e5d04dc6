@@ -43,6 +43,20 @@ async function assertSuperAdmin(userId: string) {
   if (!(await isSuperAdmin(userId))) throw new Error("Forbidden: super admin only");
 }
 
+// Ensure the target user shares at least one tenant with the caller.
+// Super admins bypass this check. Returns the set of shared tenant IDs.
+async function assertSharesTenant(callerId: string, targetUserId: string): Promise<void> {
+  if (await isSuperAdmin(callerId)) return;
+  if (callerId === targetUserId) return;
+  const [{ data: callerMems }, { data: targetMems }] = await Promise.all([
+    supabaseAdmin.from("tenant_members").select("tenant_id").eq("user_id", callerId),
+    supabaseAdmin.from("tenant_members").select("tenant_id").eq("user_id", targetUserId),
+  ]);
+  const callerSet = new Set((callerMems ?? []).map((m) => m.tenant_id));
+  const shared = (targetMems ?? []).some((m) => callerSet.has(m.tenant_id));
+  if (!shared) throw new Error("Forbidden: target user is not in your organisation");
+}
+
 export const clearMustChangePassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
