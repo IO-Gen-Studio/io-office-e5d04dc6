@@ -260,6 +260,7 @@ export type Database = {
           id: string
           name: string
           stages: Json
+          status: string
           tenant_id: string
           updated_at: string
         }
@@ -270,6 +271,7 @@ export type Database = {
           id?: string
           name: string
           stages?: Json
+          status?: string
           tenant_id?: string
           updated_at?: string
         }
@@ -280,6 +282,7 @@ export type Database = {
           id?: string
           name?: string
           stages?: Json
+          status?: string
           tenant_id?: string
           updated_at?: string
         }
