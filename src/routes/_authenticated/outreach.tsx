@@ -31,7 +31,15 @@ type StageKey = typeof STAGES[number]["key"];
 
 type StageConfig = { due_date?: string | null; template_id?: string | null };
 type StagesMap = Partial<Record<StageKey, StageConfig>>;
-type Campaign = { id: string; name: string; description: string | null; created_at: string; stages?: StagesMap | null };
+type CampaignStatus = "planned" | "in_progress" | "completed" | "cancelled";
+type Campaign = { id: string; name: string; description: string | null; created_at: string; stages?: StagesMap | null; status: CampaignStatus };
+const CAMPAIGN_STATUS_OPTIONS: { value: CampaignStatus; label: string }[] = [
+  { value: "planned", label: "Planned" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+];
+const ACTIVE_STATUSES: CampaignStatus[] = ["planned", "in_progress"];
 type Template = { id: string; name: string; subject: string; body: string; approved: boolean };
 type OutreachMap = Partial<Record<StageKey, { sent_at?: string | null; reply?: string | null }>>;
 type CC = {
