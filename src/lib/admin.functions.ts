@@ -165,6 +165,7 @@ export const adminUpdateProfile = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
+    await assertSharesTenant(context.userId, data.user_id);
     const { error } = await supabaseAdmin
       .from("profiles")
       .update({
