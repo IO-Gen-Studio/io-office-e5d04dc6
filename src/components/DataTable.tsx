@@ -166,22 +166,36 @@ export function DataTable<T>(props: DataTableProps<T>) {
 
   // Sorting
   const sortedRows = useMemo(() => {
-    if (!prefs.sort) return filteredRows;
-    const col = columns.find((c) => c.key === prefs.sort!.key);
-    if (!col) return filteredRows;
-    const dir = prefs.sort.dir === "asc" ? 1 : -1;
-    return [...filteredRows].sort((a, b) => {
-      const av = col.accessor(a);
-      const bv = col.accessor(b);
-      if (av === null || av === undefined) return 1;
-      if (bv === null || bv === undefined) return -1;
-      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
-      return (
-        String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" }) *
-        dir
-      );
-    });
-  }, [filteredRows, prefs.sort, columns]);
+    let arr = filteredRows;
+    if (prefs.sort) {
+      const col = columns.find((c) => c.key === prefs.sort!.key);
+      if (col) {
+        const dir = prefs.sort.dir === "asc" ? 1 : -1;
+        arr = [...filteredRows].sort((a, b) => {
+          const av = col.accessor(a);
+          const bv = col.accessor(b);
+          if (av === null || av === undefined) return 1;
+          if (bv === null || bv === undefined) return -1;
+          if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+          return (
+            String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" }) *
+            dir
+          );
+        });
+      }
+    }
+    if (pinRow) {
+      const top: T[] = [], mid: T[] = [], bot: T[] = [];
+      for (const r of arr) {
+        const p = pinRow(r);
+        if (p === "top") top.push(r);
+        else if (p === "bottom") bot.push(r);
+        else mid.push(r);
+      }
+      return [...top, ...mid, ...bot];
+    }
+    return arr;
+  }, [filteredRows, prefs.sort, columns, pinRow]);
 
   const toggleSort = (key: string) => {
     setPrefs((p) => {
