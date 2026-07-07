@@ -43,6 +43,20 @@ async function assertSuperAdmin(userId: string) {
   if (!(await isSuperAdmin(userId))) throw new Error("Forbidden: super admin only");
 }
 
+// Ensure the target user shares at least one tenant with the caller.
+// Super admins bypass this check. Returns the set of shared tenant IDs.
+async function assertSharesTenant(callerId: string, targetUserId: string): Promise<void> {
+  if (await isSuperAdmin(callerId)) return;
+  if (callerId === targetUserId) return;
+  const [{ data: callerMems }, { data: targetMems }] = await Promise.all([
+    supabaseAdmin.from("tenant_members").select("tenant_id").eq("user_id", callerId),
+    supabaseAdmin.from("tenant_members").select("tenant_id").eq("user_id", targetUserId),
+  ]);
+  const callerSet = new Set((callerMems ?? []).map((m) => m.tenant_id));
+  const shared = (targetMems ?? []).some((m) => callerSet.has(m.tenant_id));
+  if (!shared) throw new Error("Forbidden: target user is not in your organisation");
+}
+
 export const clearMustChangePassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -125,6 +139,7 @@ export const adminResetPassword = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
+    await assertSharesTenant(context.userId, data.user_id);
     const { error } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, {
       password: data.password,
     });
@@ -150,6 +165,7 @@ export const adminUpdateProfile = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
+    await assertSharesTenant(context.userId, data.user_id);
     const { error } = await supabaseAdmin
       .from("profiles")
       .update({
@@ -174,6 +190,8 @@ export const adminSetAdminRole = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
+    // Only super admins can grant/revoke the global admin role (it is not tenant-scoped).
+    await assertSuperAdmin(context.userId);
     if (data.is_admin) {
       await supabaseAdmin
         .from("user_roles")
@@ -254,6 +272,27 @@ export const adminListUsers = createServerFn({ method: "POST" })
     await assertAdmin(context.userId);
     const superAdmin = await isSuperAdmin(context.userId);
 
+    // Non-super admins MUST provide a tenant_id and must be a member of it.
+    let tenantId = data.tenant_id;
+    if (!superAdmin) {
+      if (!tenantId) {
+        const { data: p } = await supabaseAdmin
+          .from("profiles")
+          .select("active_tenant_id")
+          .eq("id", context.userId)
+          .maybeSingle();
+        tenantId = (p?.active_tenant_id ?? undefined) as string | undefined;
+      }
+      if (!tenantId) throw new Error("Forbidden: tenant_id required");
+      const { data: callerMem } = await supabaseAdmin
+        .from("tenant_members")
+        .select("user_id")
+        .eq("user_id", context.userId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (!callerMem) throw new Error("Forbidden: not a member of that organisation");
+    }
+
     const [
       { data: profiles },
       { data: roles },
@@ -290,25 +329,34 @@ export const adminListUsers = createServerFn({ method: "POST" })
       // non-fatal — column will just show "—"
     }
 
-    // Non-super admins only see users in their tenant
-    const tenantId = data.tenant_id;
     let visibleProfiles = profiles ?? [];
+    let visibleRoles = roles ?? [];
+    let visibleAccess = access ?? [];
+    let visibleMembers = members ?? [];
+    let visibleSupers = superAdmin ? (supers ?? []) : [];
+
     if (!superAdmin && tenantId) {
       const memberIds = new Set(
         (members ?? []).filter((m) => m.tenant_id === tenantId).map((m) => m.user_id),
       );
       visibleProfiles = visibleProfiles.filter((p) => memberIds.has(p.id));
+      visibleMembers = (members ?? []).filter((m) => m.tenant_id === tenantId);
+      visibleAccess = (access ?? []).filter(
+        (a) => a.tenant_id === tenantId && memberIds.has(a.user_id),
+      );
+      visibleRoles = (roles ?? []).filter((r) => memberIds.has(r.user_id));
     }
+
     const profilesWithLogin = visibleProfiles.map((p) => ({
       ...p,
       last_sign_in_at: lastSignInById.get(p.id) ?? null,
     }));
     return {
       profiles: profilesWithLogin,
-      roles: roles ?? [],
-      access: access ?? [],
-      members: members ?? [],
-      supers: supers ?? [],
+      roles: visibleRoles,
+      access: visibleAccess,
+      members: visibleMembers,
+      supers: visibleSupers,
     };
   });
 
