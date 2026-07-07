@@ -120,53 +120,110 @@ function CampaignsTab({ editable, onOpen }: { editable: boolean; onOpen: (c: Cam
     toast.success("Deleted"); void load();
   };
 
+  const [statusTab, setStatusTab] = useState<"active" | "completed">("active");
+  const statusBadgeClass = (s: CampaignStatus) =>
+    s === "in_progress" ? "bg-sky-100 text-sky-800 border-sky-200"
+    : s === "planned" ? "bg-slate-100 text-slate-700 border-slate-200"
+    : s === "completed" ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+    : "bg-rose-100 text-rose-800 border-rose-200";
+
+  const partitioned = useMemo(() => {
+    const active: Campaign[] = [], completed: Campaign[] = [];
+    for (const c of visibleCampaigns) {
+      if (ACTIVE_STATUSES.includes(c.status)) active.push(c); else completed.push(c);
+    }
+    // Pin in_progress at top of active list
+    active.sort((a, b) => {
+      const av = a.status === "in_progress" ? 0 : 1;
+      const bv = b.status === "in_progress" ? 0 : 1;
+      return av - bv;
+    });
+    return { active, completed };
+  }, [visibleCampaigns]);
+
+  const updateStatus = async (c: Campaign, next: CampaignStatus) => {
+    const { error } = await supabase.from("campaigns").update({ status: next } as never).eq("id", c.id);
+    if (error) { toast.error(error.message); return; }
+    void load();
+  };
+
+  const renderRows = (list: Campaign[]) => (
+    list.length === 0 ? <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No campaigns.</TableCell></TableRow> :
+      list.map((c) => {
+        const contacts = contactsByCampaign[c.id] ?? [];
+        const next = computeNext(c, contacts);
+        const highlight = c.status === "in_progress" ? "bg-sky-50 hover:bg-sky-100/70 dark:bg-sky-950/30" : "";
+        return (
+          <TableRow
+            key={c.id}
+            className={`cursor-pointer hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${highlight}`}
+            tabIndex={0}
+            onClick={() => onOpen(c)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onOpen(c);
+              }
+            }}
+          >
+            <TableCell className="font-medium">{c.name}</TableCell>
+            <TableCell className="text-muted-foreground">{c.description || "—"}</TableCell>
+            <TableCell onClick={(e) => e.stopPropagation()}>
+              {editable ? (
+                <Select value={c.status} onValueChange={(v) => void updateStatus(c, v as CampaignStatus)}>
+                  <SelectTrigger className={`h-8 w-[140px] text-xs border ${statusBadgeClass(c.status)}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CAMPAIGN_STATUS_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Badge variant="outline" className={statusBadgeClass(c.status)}>
+                  {CAMPAIGN_STATUS_OPTIONS.find((o) => o.value === c.status)?.label ?? c.status}
+                </Badge>
+              )}
+            </TableCell>
+            <TableCell className="text-right">{contacts.length}</TableCell>
+            <TableCell>{next.label}</TableCell>
+            <TableCell className="text-muted-foreground">{next.date}</TableCell>
+            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+              {editable && <>
+                <Button variant="ghost" size="icon" aria-label="Edit campaign" onClick={() => { setEditing(c); setOpen(true); }}><Pencil className="size-4" /></Button>
+                <Button variant="ghost" size="icon" aria-label="Delete campaign" onClick={() => remove(c)}><Trash2 className="size-4" /></Button>
+              </>}
+            </TableCell>
+          </TableRow>
+        );
+      })
+  );
+
   return (
     <Card className="shadow-soft">
       <CardContent className="pt-6 space-y-4">
-        <div className="flex justify-end">
+        <div className="flex justify-between items-center gap-2">
+          <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as "active" | "completed")}>
+            <TabsList>
+              <TabsTrigger value="active">Active ({partitioned.active.length})</TabsTrigger>
+              <TabsTrigger value="completed">Completed ({partitioned.completed.length})</TabsTrigger>
+            </TabsList>
+          </Tabs>
           {editable && <Button className="bg-gradient-primary text-primary-foreground" onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4 mr-2" />New campaign</Button>}
         </div>
         <Table>
           <TableHeader><TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Description</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead className="text-right">Contacts</TableHead>
             <TableHead>Next action</TableHead>
             <TableHead>Next action date</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {visibleCampaigns.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No campaigns yet.</TableCell></TableRow> :
-              visibleCampaigns.map((c) => {
-                const contacts = contactsByCampaign[c.id] ?? [];
-                const next = computeNext(c, contacts);
-                return (
-                  <TableRow
-                    key={c.id}
-                    className="cursor-pointer hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    tabIndex={0}
-                    onClick={() => onOpen(c)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        onOpen(c);
-                      }
-                    }}
-                  >
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{c.description || "—"}</TableCell>
-                    <TableCell className="text-right">{contacts.length}</TableCell>
-                    <TableCell>{next.label}</TableCell>
-                    <TableCell className="text-muted-foreground">{next.date}</TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      {editable && <>
-                        <Button variant="ghost" size="icon" aria-label="Edit campaign" onClick={() => { setEditing(c); setOpen(true); }}><Pencil className="size-4" /></Button>
-                        <Button variant="ghost" size="icon" aria-label="Delete campaign" onClick={() => remove(c)}><Trash2 className="size-4" /></Button>
-                      </>}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+            {statusTab === "active" ? renderRows(partitioned.active) : renderRows(partitioned.completed)}
           </TableBody>
         </Table>
         <CampaignDialog open={open} onOpenChange={setOpen} campaign={editing} onSaved={load} />
