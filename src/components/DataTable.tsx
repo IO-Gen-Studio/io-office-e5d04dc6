@@ -390,6 +390,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                   className={cn(
                     "border-b transition-colors hover:bg-muted/50",
                     onRowClick && "cursor-pointer",
+                    rowClassName?.(row),
                   )}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
