@@ -87,6 +87,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     toolbarLeft,
     toolbarRight,
     rowClassName,
+    pinRow,
   } = props;
   const { user } = useAuth();
   const storeKey = `dt:${tableKey}:${user?.id ?? "anon"}`;
