@@ -190,6 +190,8 @@ export const adminSetAdminRole = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
+    // Only super admins can grant/revoke the global admin role (it is not tenant-scoped).
+    await assertSuperAdmin(context.userId);
     if (data.is_admin) {
       await supabaseAdmin
         .from("user_roles")
