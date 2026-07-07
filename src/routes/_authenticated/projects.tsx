@@ -179,38 +179,102 @@ function ProjectList({ editable, onOpen }: { editable: boolean; onOpen: (p: Proj
   const customCols = useCustomFieldColumns<Project>("projects");
   const allColumns = [...columns, ...customCols];
 
+  const activeRows = useMemo(
+    () => rows.filter((r) => inRange(r.start_date ?? r.created_at)),
+    [rows, inRange],
+  );
+  const confirmed = useMemo(() => {
+    const list = activeRows.filter((r) => r.status === "in_progress" || r.status === "completed");
+    return {
+      revenue: list.reduce((s, r) => s + Number(r.total_cost || 0), 0),
+      investment: list.reduce((s, r) => s + Number(r.supplier_cost || 0), 0),
+    };
+  }, [activeRows]);
+  const pending = useMemo(() => {
+    const list = activeRows.filter((r) => r.status !== "in_progress" && r.status !== "completed");
+    return {
+      revenue: list.reduce((s, r) => s + Number(r.total_cost || 0), 0),
+      investment: list.reduce((s, r) => s + Number(r.supplier_cost || 0), 0),
+    };
+  }, [activeRows]);
+  const confirmedProfit = confirmed.revenue - confirmed.investment;
+  const pendingProfit = pending.revenue - pending.investment;
+
   return (
-    <Tabs value={tab} onValueChange={(v) => setTab(v as PType)}>
-      <div className="flex justify-between items-center">
-        <TabsList>
-          <TabsTrigger value="project">Projects</TabsTrigger>
-          <TabsTrigger value="work">Works</TabsTrigger>
-        </TabsList>
-        {editable && <Button className="bg-gradient-primary text-primary-foreground" onClick={() => setOpen(true)}><Plus className="size-4 mr-2" />New {tab}</Button>}
-      </div>
-      <TabsContent value={tab} className="mt-4">
-        <Card className="shadow-soft">
+    <div className="space-y-6">
+      <div className="grid gap-3 md:grid-cols-2">
+        <Card className="shadow-soft border-l-4 border-l-emerald-500">
           <CardContent className="pt-6">
-            <DataTable
-              tableKey={`projects.${tab}`}
-              columns={allColumns}
-              rows={filtered}
-              rowId={(r) => r.id}
-              onSaveCell={saveCell}
-              onRowClick={onOpen}
-              emptyMessage={`No ${tab}s yet.`}
-              actions={(r) => (
-                <div className="flex justify-end gap-1">
-                  <Button variant="ghost" size="icon" title="Open" onClick={() => onOpen(r)}><FolderOpen className="size-4" /></Button>
-                  {editable && <Button variant="ghost" size="icon" title="Delete" onClick={() => remove(r)}><Trash2 className="size-4" /></Button>}
-                </div>
-              )}
-            />
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Confirmed · In progress + Completed</p>
+            <div className="mt-2 flex items-baseline gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Profit</p>
+                <p className={`text-2xl font-semibold ${confirmedProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{formatGBP(confirmedProfit)}</p>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                <div>Revenue: <span className="font-medium text-foreground">{formatGBP(confirmed.revenue)}</span></div>
+                <div>Investment: <span className="font-medium text-foreground">{formatGBP(confirmed.investment)}</span></div>
+              </div>
+            </div>
           </CardContent>
         </Card>
-        <ProjectDialog open={open} onOpenChange={setOpen} project={null} defaultType={tab} orgs={orgs} contacts={contacts} profiles={profiles} onSaved={load} />
-      </TabsContent>
-    </Tabs>
+        <Card className="shadow-soft border-l-4 border-l-amber-500">
+          <CardContent className="pt-6">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Pending · On hold / Cancelled / Other</p>
+            <div className="mt-2 flex items-baseline gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Profit</p>
+                <p className={`text-2xl font-semibold ${pendingProfit >= 0 ? "text-amber-600" : "text-destructive"}`}>{formatGBP(pendingProfit)}</p>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                <div>Revenue: <span className="font-medium text-foreground">{formatGBP(pending.revenue)}</span></div>
+                <div>Investment: <span className="font-medium text-foreground">{formatGBP(pending.investment)}</span></div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs value={tab} onValueChange={(v) => setTab(v as PType)}>
+        <div className="flex justify-between items-center">
+          <TabsList>
+            <TabsTrigger value="project">Projects</TabsTrigger>
+            <TabsTrigger value="work">Works</TabsTrigger>
+          </TabsList>
+          {editable && <Button className="bg-gradient-primary text-primary-foreground" onClick={() => setOpen(true)}><Plus className="size-4 mr-2" />New {tab}</Button>}
+        </div>
+        <TabsContent value={tab} className="mt-4">
+          <Card className="shadow-soft">
+            <CardContent className="pt-6">
+              <DataTable
+                tableKey={`projects.${tab}`}
+                columns={allColumns}
+                rows={filtered}
+                rowId={(r) => r.id}
+                onSaveCell={saveCell}
+                onRowClick={onOpen}
+                emptyMessage={`No ${tab}s yet.`}
+                pinRow={(r) => r.status === "in_progress" ? "top" : r.status === "completed" ? "bottom" : null}
+                rowClassName={(r) =>
+                  r.status === "in_progress"
+                    ? "bg-sky-50 hover:bg-sky-100/70 dark:bg-sky-950/30 dark:hover:bg-sky-950/50"
+                    : r.status === "completed"
+                    ? "bg-emerald-50 hover:bg-emerald-100/70 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50"
+                    : undefined
+                }
+                actions={(r) => (
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" title="Open" onClick={() => onOpen(r)}><FolderOpen className="size-4" /></Button>
+                    {editable && <Button variant="ghost" size="icon" title="Delete" onClick={() => remove(r)}><Trash2 className="size-4" /></Button>}
+                  </div>
+                )}
+              />
+            </CardContent>
+          </Card>
+          <ProjectDialog open={open} onOpenChange={setOpen} project={null} defaultType={tab} orgs={orgs} contacts={contacts} profiles={profiles} onSaved={load} />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
 
