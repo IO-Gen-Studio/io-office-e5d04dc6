@@ -66,6 +66,8 @@ type DataTableProps<T> = {
   toolbarLeft?: ReactNode;
   toolbarRight?: ReactNode;
   rowClassName?: (row: T) => string | undefined;
+  /** Pin rows to top or bottom regardless of user sort. */
+  pinRow?: (row: T) => "top" | "bottom" | null;
 };
 
 function defaultPrefs(cols: { key: string }[]): Prefs {
