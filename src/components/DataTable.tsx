@@ -65,6 +65,7 @@ type DataTableProps<T> = {
   emptyMessage?: string;
   toolbarLeft?: ReactNode;
   toolbarRight?: ReactNode;
+  rowClassName?: (row: T) => string | undefined;
 };
 
 function defaultPrefs(cols: { key: string }[]): Prefs {
