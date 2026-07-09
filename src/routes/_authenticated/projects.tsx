@@ -308,6 +308,8 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
   const [siblingMs, setSiblingMs] = useState<Record<string, { completed_at: string | null }[]>>({});
   const [openEdit, setOpenEdit] = useState(false);
   const [customLabel, setCustomLabel] = useState("");
+  const [siblingTab, setSiblingTab] = useState<PType>(project.type);
+  useEffect(() => { setSiblingTab(project.type); }, [project.type]);
 
   const load = async () => {
     const [{ data: m }, { data: o }, { data: pr }, { data: c }, { data: fresh }, { data: subs }, { data: sibs }, { data: allMs }] = await Promise.all([
@@ -317,7 +319,7 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
       supabase.from("contacts").select("id,first_name,last_name,organisation_id").order("last_name"),
       supabase.from("projects").select("*").eq("id", project.id).single(),
       supabase.from("subscriptions").select("id,plan_name,billing_cycle,cost,renewal_date,status").eq("project_id", project.id).order("plan_name"),
-      supabase.from("projects").select("*").eq("type", project.type).order("created_at", { ascending: false }),
+      supabase.from("projects").select("*").order("created_at", { ascending: false }),
       supabase.from("milestones").select("parent_id,completed_at").eq("parent_type", "project"),
     ]);
     setMilestones((m ?? []) as Milestone[]);
