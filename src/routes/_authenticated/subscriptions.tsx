@@ -210,6 +210,8 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
   const [siblings, setSiblings] = useState<Sub[]>([]);
   const [openEdit, setOpenEdit] = useState(false);
   const [customLabel, setCustomLabel] = useState("");
+  const [siblingTab, setSiblingTab] = useState<"active" | "pending">(sub.status === "active" ? "active" : "pending");
+  useEffect(() => { setSiblingTab(sub.status === "active" ? "active" : "pending"); }, [sub.status]);
   const seededRef = useRef<Set<string>>(new Set());
 
   const cycleLabel = useBuiltinFieldLabel("subscriptions", "billing_cycle");
