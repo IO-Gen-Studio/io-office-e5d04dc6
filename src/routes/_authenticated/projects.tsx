@@ -443,10 +443,21 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         {/* Left: Portfolio Rail */}
         <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto pr-1">
-          <h3 className="px-1 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
-            {project.type === "work" ? "Works Portfolio" : "Project Portfolio"}
-          </h3>
-          {siblings.map((s) => {
+          <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
+            <button
+              onClick={() => setSiblingTab("project")}
+              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${siblingTab === "project" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+            >Projects</button>
+            <button
+              onClick={() => setSiblingTab("work")}
+              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${siblingTab === "work" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+            >Works</button>
+          </div>
+          {(() => {
+            const filtered = siblings.filter((s) => s.type === siblingTab);
+            const rank = (s: Project) => s.status === "in_progress" ? 0 : s.status === "completed" ? 2 : 1;
+            const sorted = [...filtered].sort((a, b) => rank(a) - rank(b));
+            return sorted.map((s) => {
             const isActive = s.id === project.id;
             const sms = siblingMs[s.id] ?? [];
             const sDone = sms.filter((x) => x.completed_at).length;
@@ -458,7 +469,7 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
                 className={
                   isActive
                     ? "w-full text-left p-5 rounded-3xl bg-primary text-primary-foreground shadow-xl relative overflow-hidden"
-                    : "w-full text-left p-5 rounded-2xl bg-card border border-border hover:border-foreground/20 transition-colors"
+                    : `w-full text-left p-5 rounded-2xl border transition-colors ${s.status === "in_progress" ? "bg-sky-50 border-sky-200 hover:border-sky-400 dark:bg-sky-950/30 dark:border-sky-900" : s.status === "completed" ? "bg-emerald-50 border-emerald-200 hover:border-emerald-400 dark:bg-emerald-950/30 dark:border-emerald-900" : "bg-card border-border hover:border-foreground/20"}`
                 }
               >
                 {isActive && <div className="absolute -top-8 -right-8 w-32 h-32 bg-primary-foreground/5 rounded-full blur-2xl" />}
@@ -485,7 +496,8 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
                 </div>
               </button>
             );
-          })}
+          });
+          })()}
         </aside>
 
         {/* Right: Main Detail Panel */}
