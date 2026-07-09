@@ -357,6 +357,8 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
   const progress = milestones.length === 0 ? 0
     : Math.round((milestones.filter((m) => m.completed_at).length / milestones.length) * 100);
   const done = milestones.filter((m) => m.completed_at).length;
+  const profit = Number(project.total_cost) - Number(project.supplier_cost);
+
 
   const clientName = orgs.find((o) => o.id === project.client_org_id)?.name ?? "—";
   const leadName = profiles.find((u) => u.id === project.team_lead_id)?.full_name ?? "";
