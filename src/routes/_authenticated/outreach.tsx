@@ -422,7 +422,7 @@ function CampaignWorkspace({
           <div className="p-1.5 bg-muted rounded-lg">
             <Zap className="size-4 text-foreground" />
           </div>
-          <h3 className="text-xs font-bold text-foreground uppercase tracking-widest">Automation Sequence</h3>
+          <h3 className="text-xs font-bold text-foreground uppercase tracking-widest">FOLLOW-UP SCHEDULE</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {STAGES.map((s, idx) => {
