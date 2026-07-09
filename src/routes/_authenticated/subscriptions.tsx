@@ -342,10 +342,20 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         {/* Left: Portfolio Rail */}
         <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto pr-1">
-          <h3 className="px-1 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Subscriptions</h3>
+          <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
+            <button
+              onClick={() => setSiblingTab("active")}
+              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${siblingTab === "active" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+            >Active</button>
+            <button
+              onClick={() => setSiblingTab("pending")}
+              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${siblingTab === "pending" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+            >Pending</button>
+          </div>
           {(() => {
+            const filtered = siblings.filter((s) => siblingTab === "active" ? s.status === "active" : s.status !== "active");
             const rank = (s: Sub) => s.status === "active" ? 0 : s.status === "pending_renewal" ? 1 : 2;
-            const sorted = [...siblings].sort((a, b) => rank(a) - rank(b));
+            const sorted = [...filtered].sort((a, b) => rank(a) - rank(b));
             return sorted.map((s) => {
             const isActive = s.id === sub.id;
             const sClient = orgs.find((o) => o.id === s.client_org_id)?.name ?? "—";
