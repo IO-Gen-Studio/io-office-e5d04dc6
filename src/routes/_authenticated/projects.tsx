@@ -284,21 +284,31 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [linkedSubs, setLinkedSubs] = useState<LinkedSub[]>([]);
+  const [siblings, setSiblings] = useState<Project[]>([]);
+  const [siblingMs, setSiblingMs] = useState<Record<string, { completed_at: string | null }[]>>({});
   const [openEdit, setOpenEdit] = useState(false);
   const [customLabel, setCustomLabel] = useState("");
 
   const load = async () => {
-    const [{ data: m }, { data: o }, { data: pr }, { data: c }, { data: fresh }, { data: subs }] = await Promise.all([
+    const [{ data: m }, { data: o }, { data: pr }, { data: c }, { data: fresh }, { data: subs }, { data: sibs }, { data: allMs }] = await Promise.all([
       supabase.from("milestones").select("*").eq("parent_id", project.id).eq("parent_type", "project").order("position"),
       supabase.from("organisations").select("id,name").order("name"),
       supabase.from("profiles").select("id,full_name").order("full_name"),
       supabase.from("contacts").select("id,first_name,last_name,organisation_id").order("last_name"),
       supabase.from("projects").select("*").eq("id", project.id).single(),
       supabase.from("subscriptions").select("id,plan_name,billing_cycle,cost,renewal_date,status").eq("project_id", project.id).order("plan_name"),
+      supabase.from("projects").select("*").eq("type", project.type).order("created_at", { ascending: false }),
+      supabase.from("milestones").select("parent_id,completed_at").eq("parent_type", "project"),
     ]);
     setMilestones((m ?? []) as Milestone[]);
     setOrgs((o ?? []) as Org[]); setProfiles((pr ?? []) as Profile[]); setContacts((c ?? []) as Contact[]);
     setLinkedSubs((subs ?? []) as LinkedSub[]);
+    setSiblings((sibs ?? []) as Project[]);
+    const map: Record<string, { completed_at: string | null }[]> = {};
+    for (const x of (allMs ?? []) as { parent_id: string; completed_at: string | null }[]) {
+      (map[x.parent_id] ||= []).push({ completed_at: x.completed_at });
+    }
+    setSiblingMs(map);
     if (fresh) onSaved(fresh as Project);
   };
   useEffect(() => { void load(); }, [project.id]);
@@ -333,16 +343,38 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
     void load();
   };
 
-  const profit = Number(project.total_cost) - Number(project.supplier_cost);
+  const updateProjectField = async (patch: Partial<Project>) => {
+    const { error } = await supabase.from("projects").update(patch as never).eq("id", project.id);
+    if (error) { toast.error(error.message); return; }
+    void load();
+  };
+
+  const statusLabel = useBuiltinFieldLabel("projects", "status");
+  const priorityLabel = useBuiltinFieldLabel("projects", "priority");
+  const statusOptions = useBuiltinFieldOptions("projects", "status");
+  const priorityOptions = useBuiltinFieldOptions("projects", "priority");
+
+  const progress = milestones.length === 0 ? 0
+    : Math.round((milestones.filter((m) => m.completed_at).length / milestones.length) * 100);
+  const done = milestones.filter((m) => m.completed_at).length;
+
+  const clientName = orgs.find((o) => o.id === project.client_org_id)?.name ?? "—";
+  const leadName = profiles.find((u) => u.id === project.team_lead_id)?.full_name ?? "";
+
+  const priorityChipClass =
+    project.priority === "high" ? "bg-destructive/10 text-destructive"
+    : project.priority === "low" ? "bg-muted text-muted-foreground"
+    : "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400";
+  const statusChipClass =
+    project.status === "completed" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+    : project.status === "in_progress" ? "bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-400"
+    : "bg-muted text-muted-foreground";
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="size-4 mr-1" />Back</Button>
-        <div className="flex-1">
-          <h2 className="text-xl font-semibold">{project.title}</h2>
-          <p className="text-sm text-muted-foreground capitalize">{project.type} · {project.status.replace("_", " ")} · {project.priority} priority</p>
-        </div>
+        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="size-4 mr-1" />Back to list</Button>
+        <div className="flex-1" />
         <Button
           variant="outline"
           onClick={async () => {
@@ -383,128 +415,242 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
         {editable && <Button variant="outline" onClick={() => setOpenEdit(true)}><Pencil className="size-4 mr-2" />Edit</Button>}
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
-        <StatCard label="Final Costs" value={formatGBP(project.total_cost)} />
-        <StatCard label="Investment" value={formatGBP(project.supplier_cost)} />
-        <StatCard label="Profit" value={formatGBP(profit)} accent={profit >= 0 ? "text-primary" : "text-destructive"} />
-      </div>
-
-      <Card className="shadow-soft">
-        <CardContent className="pt-6 space-y-3">
-          <h3 className="font-semibold">Details</h3>
-          <div className="grid md:grid-cols-2 gap-3 text-sm">
-            <Info label="Client" value={orgs.find((o) => o.id === project.client_org_id)?.name ?? "—"} />
-            <Info label="Contact" value={(() => { const c = contacts.find((x) => x.id === project.client_contact_id); return c ? `${c.first_name} ${c.last_name}` : "—"; })()} />
-            <Info label="Team lead" value={profiles.find((u) => u.id === project.team_lead_id)?.full_name ?? "—"} />
-            <Info label="Dates" value={`${formatDateUK(project.start_date)} → ${formatDateUK(project.end_date)}`} />
-          </div>
-          {project.description && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{project.description}</p>}
-          <CustomFieldDisplay module="projects" value={project.custom} />
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-soft">
-        <CardContent className="pt-6">
-          <Tabs defaultValue="milestones">
-            <TabsList>
-              <TabsTrigger value="milestones">Milestones</TabsTrigger>
-              <TabsTrigger value="costs">Cost Breakdown</TabsTrigger>
-              <TabsTrigger value="todos">To-dos</TabsTrigger>
-            </TabsList>
-            <TabsContent value="milestones" className="mt-4 space-y-4">
-              {milestones.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No milestones yet.</p>
-              ) : (
-                <div className="overflow-auto rounded-md border">
-                  <table className="w-full text-sm">
-                    <thead className="border-b bg-muted/30">
-                      <tr>
-                        <th className="text-left p-2 w-10">Done</th>
-                        <th className="text-left p-2">Milestone</th>
-                        <th className="text-left p-2 w-44">Due date</th>
-                        <th className="text-left p-2 w-32">Completed</th>
-                        {editable && <th className="text-right p-2 w-10" />}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {milestones.map((m) => (
-                        <tr key={m.id} className="border-b">
-                          <td className="p-2">
-                            <Checkbox
-                              checked={!!m.completed_at}
-                              onCheckedChange={(c) => editable && toggleCompleted(m, c === true)}
-                              disabled={!editable}
-                            />
-                          </td>
-                          <td className={`p-2 ${m.completed_at ? "line-through text-muted-foreground" : ""}`}>{relabelForType(m.label, project.type)}</td>
-                          <td className="p-2">
-                            <Input
-                              type="date"
-                              value={m.due_date ?? ""}
-                              disabled={!editable}
-                              onChange={(e) => updateDueDate(m, e.target.value || null)}
-                              className="h-8 text-sm"
-                            />
-                          </td>
-                          <td className="p-2 text-muted-foreground">{formatDateUK(m.completed_at)}</td>
-                          {editable && <td className="p-2 text-right">
-                            {m.is_custom && <Button variant="ghost" size="icon" aria-label="Delete custom milestone" onClick={() => removeMilestone(m)}><Trash2 className="size-4" /></Button>}
-                          </td>}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {editable && (
-                <div className="flex gap-2 pt-2 border-t">
-                  <Input placeholder="Add custom milestone" value={customLabel} onChange={(e) => setCustomLabel(e.target.value)} />
-                  <Button onClick={addCustom} disabled={!customLabel.trim()}>Add</Button>
-                </div>
-              )}
-            </TabsContent>
-            <TabsContent value="costs" className="mt-4 space-y-4">
-              <CostBreakdown
-                parentType="project"
-                parentId={project.id}
-                editable={editable}
-                onTotalsChange={async ({ final, supplier }) => {
-                  if (Number(project.total_cost) === final && Number(project.supplier_cost) === supplier) return;
-                  await supabase.from("projects").update({ total_cost: final, supplier_cost: supplier }).eq("id", project.id);
-                  void load();
-                }}
-              />
-              {linkedSubs.length > 0 && (
-                <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Linked subscription{linkedSubs.length > 1 ? "s" : ""}</p>
-                    <span className="text-xs text-muted-foreground">Reference only — not included in project totals</span>
+      <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+        {/* Left: Portfolio Rail */}
+        <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto pr-1">
+          <h3 className="px-1 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+            {project.type === "work" ? "Works Portfolio" : "Project Portfolio"}
+          </h3>
+          {siblings.map((s) => {
+            const isActive = s.id === project.id;
+            const sms = siblingMs[s.id] ?? [];
+            const sDone = sms.filter((x) => x.completed_at).length;
+            const sProg = sms.length ? Math.round((sDone / sms.length) * 100) : 0;
+            return (
+              <button
+                key={s.id}
+                onClick={() => !isActive && onSaved(s)}
+                className={
+                  isActive
+                    ? "w-full text-left p-5 rounded-3xl bg-primary text-primary-foreground shadow-xl relative overflow-hidden"
+                    : "w-full text-left p-5 rounded-2xl bg-card border border-border hover:border-foreground/20 transition-colors"
+                }
+              >
+                {isActive && <div className="absolute -top-8 -right-8 w-32 h-32 bg-primary-foreground/5 rounded-full blur-2xl" />}
+                <div className="relative">
+                  <h4 className={`font-bold text-sm leading-snug line-clamp-2 ${isActive ? "" : "text-foreground"}`}>{s.title}</h4>
+                  <div className="mt-3 flex justify-between items-end">
+                    <span className={`text-sm font-medium ${isActive ? "opacity-90" : "text-muted-foreground"}`}>{formatGBP(s.total_cost)}</span>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? "opacity-60" : "text-muted-foreground"}`}>{sProg}% done</span>
                   </div>
-                  <ul className="text-sm space-y-1">
-                    {linkedSubs.map((s) => (
-                      <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <span className="font-medium">{s.plan_name}</span>
-                        <span className="text-muted-foreground">{s.billing_cycle}</span>
-                        <span>{formatGBP(s.cost)}</span>
-                        {s.renewal_date && <span className="text-muted-foreground">renews {formatDateUK(s.renewal_date)}</span>}
-                      </li>
-                    ))}
-                  </ul>
+                  <div className={`w-full h-1.5 rounded-full mt-2 overflow-hidden ${isActive ? "bg-primary-foreground/10" : "bg-muted"}`}>
+                    <div
+                      className={`h-full transition-all ${isActive ? "bg-primary-foreground" : s.status === "completed" ? "bg-emerald-500" : "bg-primary"}`}
+                      style={{ width: `${sProg}%` }}
+                    />
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <span className={`text-[9px] px-2 py-0.5 rounded-md font-semibold uppercase tracking-wider ${isActive ? "bg-primary-foreground/10 border border-primary-foreground/10" : "bg-muted text-muted-foreground"}`}>
+                      {statusLabel(s.status)}
+                    </span>
+                    <span className={`text-[9px] px-2 py-0.5 rounded-md font-semibold uppercase tracking-wider ${isActive ? "bg-primary-foreground/10 border border-primary-foreground/10" : "bg-muted text-muted-foreground"}`}>
+                      {priorityLabel(s.priority)}
+                    </span>
+                  </div>
                 </div>
-              )}
-            </TabsContent>
-            <TabsContent value="todos" className="mt-4">
-              <TodoList parentType="project" parentId={project.id} editable={editable} />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+              </button>
+            );
+          })}
+        </aside>
 
+        {/* Right: Main Detail Panel */}
+        <div className="bg-card rounded-[2rem] border border-border shadow-sm overflow-hidden">
+          {/* Header */}
+          <div className="p-8 pb-6">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+              <div className="flex flex-wrap gap-2">
+                <span className="px-3 py-1 bg-muted text-muted-foreground text-[10px] font-bold rounded-lg uppercase tracking-wide">
+                  {project.type === "work" ? "Work Ledger" : "Project Ledger"}
+                </span>
+                <span className={`px-3 py-1 text-[10px] font-bold rounded-lg uppercase tracking-wide ${statusChipClass}`}>
+                  Status: {statusLabel(project.status)}
+                </span>
+                <span className={`px-3 py-1 text-[10px] font-bold rounded-lg uppercase tracking-wide ${priorityChipClass}`}>
+                  Priority: {priorityLabel(project.priority)}
+                </span>
+                <span className="px-3 py-1 bg-muted text-muted-foreground text-[10px] font-bold rounded-lg uppercase tracking-wide">
+                  Client: {clientName}
+                </span>
+              </div>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">{project.title}</h2>
+            {project.description && (
+              <p className="mt-3 text-sm text-muted-foreground whitespace-pre-wrap max-w-3xl">{project.description}</p>
+            )}
+          </div>
+
+          {/* KPI Attribute Row */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 border-y border-border/60">
+            <div className="p-6 lg:border-r border-b lg:border-b-0 border-border/60">
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] mb-2">Final Costs</label>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-foreground">{formatGBP(project.total_cost)}</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">Profit: <span className={profit >= 0 ? "text-emerald-600 font-semibold" : "text-destructive font-semibold"}>{formatGBP(profit)}</span></p>
+            </div>
+            <div className="p-6 lg:border-r border-b lg:border-b-0 border-border/60">
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] mb-2">Status</label>
+              {editable ? (
+                <Select value={project.status} onValueChange={(v) => updateProjectField({ status: v as PStatus })}>
+                  <SelectTrigger className="border-0 bg-transparent p-0 h-auto text-sm font-semibold shadow-none focus:ring-0"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : <span className="text-sm font-semibold">{statusLabel(project.status)}</span>}
+            </div>
+            <div className="p-6 lg:border-r border-border/60">
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] mb-2">Priority</label>
+              {editable ? (
+                <Select value={project.priority} onValueChange={(v) => updateProjectField({ priority: v as Priority })}>
+                  <SelectTrigger className="border-0 bg-transparent p-0 h-auto text-sm font-semibold shadow-none focus:ring-0"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {priorityOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : <span className="text-sm font-semibold">{priorityLabel(project.priority)}</span>}
+            </div>
+            <div className="p-6">
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] mb-2">Team Lead</label>
+              {editable ? (
+                <Select value={project.team_lead_id ?? "__none__"} onValueChange={(v) => updateProjectField({ team_lead_id: v === "__none__" ? null : v })}>
+                  <SelectTrigger className="border-0 bg-transparent p-0 h-auto text-sm font-semibold shadow-none focus:ring-0"><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Unassigned</SelectItem>
+                    {profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : <span className="text-sm font-semibold">{leadName || "—"}</span>}
+            </div>
+          </div>
+
+          {/* Details Sub-Card */}
+          <div className="px-8 py-5 bg-muted/20 border-b border-border/60 text-sm">
+            <div className="grid md:grid-cols-3 gap-3">
+              <Info label="Contact" value={(() => { const c = contacts.find((x) => x.id === project.client_contact_id); return c ? `${c.first_name} ${c.last_name}` : "—"; })()} />
+              <Info label="Dates" value={`${formatDateUK(project.start_date)} → ${formatDateUK(project.end_date)}`} />
+              <Info label="Investment" value={formatGBP(project.supplier_cost)} />
+            </div>
+            <CustomFieldDisplay module="projects" value={project.custom} />
+          </div>
+
+          {/* Deliverables / Tabbed Section */}
+          <div className="p-8 space-y-5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 text-foreground">
+                <div className="p-1.5 bg-primary rounded-lg">
+                  <svg className="w-4 h-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                </div>
+                <h3 className="text-xs font-bold uppercase tracking-[0.1em]">Deliverables, Costs & To-dos</h3>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div className="bg-emerald-500 h-full transition-all" style={{ width: `${progress}%` }} />
+                </div>
+                <span className="text-[10px] font-bold text-muted-foreground">{done}/{milestones.length} · {progress}%</span>
+              </div>
+            </div>
+
+            <Tabs defaultValue="milestones">
+              <TabsList>
+                <TabsTrigger value="milestones">Milestones</TabsTrigger>
+                <TabsTrigger value="costs">Cost Breakdown</TabsTrigger>
+                <TabsTrigger value="todos">To-dos</TabsTrigger>
+              </TabsList>
+              <TabsContent value="milestones" className="mt-4 space-y-4">
+                {milestones.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No milestones yet.</p>
+                ) : (
+                  <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
+                    {milestones.map((m) => (
+                      <div key={m.id} className="grid grid-cols-[auto,1fr,auto,auto] items-center gap-4 px-5 py-4 hover:bg-muted/40 transition-colors">
+                        <Checkbox
+                          checked={!!m.completed_at}
+                          onCheckedChange={(c) => editable && toggleCompleted(m, c === true)}
+                          disabled={!editable}
+                        />
+                        <span className={`text-sm font-medium ${m.completed_at ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                          {relabelForType(m.label, project.type)}
+                        </span>
+                        <Input
+                          type="date"
+                          value={m.due_date ?? ""}
+                          disabled={!editable}
+                          onChange={(e) => updateDueDate(m, e.target.value || null)}
+                          className="h-8 text-xs w-40"
+                        />
+                        <div className="w-28 text-right flex items-center justify-end gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground italic">
+                            {m.completed_at ? formatDateUK(m.completed_at) : "Pending"}
+                          </span>
+                          {editable && m.is_custom && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Delete custom milestone" onClick={() => removeMilestone(m)}><Trash2 className="size-3.5" /></Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {editable && (
+                  <div className="flex gap-2 pt-2">
+                    <Input placeholder="Add custom milestone…" value={customLabel} onChange={(e) => setCustomLabel(e.target.value)} />
+                    <Button onClick={addCustom} disabled={!customLabel.trim()}>Add</Button>
+                  </div>
+                )}
+              </TabsContent>
+              <TabsContent value="costs" className="mt-4 space-y-4">
+                <CostBreakdown
+                  parentType="project"
+                  parentId={project.id}
+                  editable={editable}
+                  onTotalsChange={async ({ final, supplier }) => {
+                    if (Number(project.total_cost) === final && Number(project.supplier_cost) === supplier) return;
+                    await supabase.from("projects").update({ total_cost: final, supplier_cost: supplier }).eq("id", project.id);
+                    void load();
+                  }}
+                />
+                {linkedSubs.length > 0 && (
+                  <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">Linked subscription{linkedSubs.length > 1 ? "s" : ""}</p>
+                      <span className="text-xs text-muted-foreground">Reference only — not included in project totals</span>
+                    </div>
+                    <ul className="text-sm space-y-1">
+                      {linkedSubs.map((s) => (
+                        <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="font-medium">{s.plan_name}</span>
+                          <span className="text-muted-foreground">{s.billing_cycle}</span>
+                          <span>{formatGBP(s.cost)}</span>
+                          {s.renewal_date && <span className="text-muted-foreground">renews {formatDateUK(s.renewal_date)}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </TabsContent>
+              <TabsContent value="todos" className="mt-4">
+                <TodoList parentType="project" parentId={project.id} editable={editable} />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+      </div>
 
       <ProjectDialog open={openEdit} onOpenChange={setOpenEdit} project={project} defaultType={project.type} orgs={orgs} contacts={contacts} profiles={profiles} onSaved={load} />
     </div>
   );
 }
+
 
 function StatCard({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
