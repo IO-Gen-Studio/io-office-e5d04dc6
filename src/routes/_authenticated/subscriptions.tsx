@@ -302,7 +302,6 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="size-4 mr-1" />Back to list</Button>
         <div className="flex-1" />
         <Button
           variant="outline"
