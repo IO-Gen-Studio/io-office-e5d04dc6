@@ -22,9 +22,9 @@ import { useFiscalYear } from "@/lib/fiscal-year";
 export const Route = createFileRoute("/_authenticated/outreach")({ component: OutreachPage });
 
 const STAGES = [
-  { key: "first_email", label: "Initial Email Action" },
-  { key: "second_email", label: "Follow up Outreach" },
-  { key: "third_email", label: "Last Final Touch" },
+  { key: "first_email", label: "Initial Email" },
+  { key: "second_email", label: "First Follow-Up" },
+  { key: "third_email", label: "Second Follow-Up" },
 ] as const;
 type StageKey = typeof STAGES[number]["key"];
 
