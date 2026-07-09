@@ -298,7 +298,7 @@ function ProjectList({ editable, onOpen }: { editable: boolean; onOpen: (p: Proj
   );
 }
 
-function ProjectDetail({ project, editable, onBack, onSaved }: { project: Project; editable: boolean; onBack: () => void; onSaved: (p: Project) => void }) {
+function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { project: Project; editable: boolean; onBack: () => void; onSaved: (p: Project) => void; onShowList?: () => void }) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
