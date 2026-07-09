@@ -507,7 +507,7 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
             <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
               <div className="flex flex-wrap gap-2">
                 <span className="px-3 py-1 bg-muted text-muted-foreground text-[10px] font-bold rounded-lg uppercase tracking-wide">
-                  PROJECTS
+                  PROJECTS & WORKS
                 </span>
                 <span className={`px-3 py-1 text-[10px] font-bold rounded-lg uppercase tracking-wide ${statusChipClass}`}>
                   Status: {statusLabel(project.status)}
