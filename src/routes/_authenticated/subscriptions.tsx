@@ -389,7 +389,7 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
           <div className="p-8 pb-6">
             <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
               <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 bg-muted text-muted-foreground text-[10px] font-bold rounded-lg uppercase tracking-wide">Subscription Ledger</span>
+                <span className="px-3 py-1 bg-muted text-muted-foreground text-[10px] font-bold rounded-lg uppercase tracking-wide">SUBSCRIPTIONS</span>
                 <span className={`px-3 py-1 text-[10px] font-bold rounded-lg uppercase tracking-wide ${statusChipClass}`}>Status: {statusLabel(sub.status)}</span>
                 <span className="px-3 py-1 bg-muted text-muted-foreground text-[10px] font-bold rounded-lg uppercase tracking-wide">Client: {clientName}</span>
                 {linkedProject && (
