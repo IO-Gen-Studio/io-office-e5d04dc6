@@ -3,18 +3,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { logActivity } from "@/lib/activity";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Pencil, Trash2, ArrowLeft, Search, Download, Upload, ExternalLink } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Download, Upload, ExternalLink, Mail, Zap, FileText, Users, Inbox, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateUK } from "@/lib/format";
 import { CustomFieldValues } from "@/components/CustomFieldValues";
@@ -23,9 +22,9 @@ import { useFiscalYear } from "@/lib/fiscal-year";
 export const Route = createFileRoute("/_authenticated/outreach")({ component: OutreachPage });
 
 const STAGES = [
-  { key: "first_email", label: "First email" },
-  { key: "second_email", label: "Second email" },
-  { key: "third_email", label: "Third email" },
+  { key: "first_email", label: "Initial Email Action" },
+  { key: "second_email", label: "Follow up Outreach" },
+  { key: "third_email", label: "Last Final Touch" },
 ] as const;
 type StageKey = typeof STAGES[number]["key"];
 
@@ -50,185 +49,544 @@ type CC = {
 };
 type LeadOpt = { key: string; label: string };
 
+const statusBadgeClass = (s: CampaignStatus) =>
+  s === "in_progress" ? "bg-sky-100 text-sky-800 border-sky-200"
+  : s === "planned" ? "bg-slate-100 text-slate-700 border-slate-200"
+  : s === "completed" ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+  : "bg-rose-100 text-rose-800 border-rose-200";
 
 function OutreachPage() {
   const { canEdit } = useAuth();
   const editable = canEdit("outreach");
-  const [active, setActive] = useState<Campaign | null>(null);
-  return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-baseline justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Email Outreach</h1>
-          <p className="text-muted-foreground mt-1">Plan and track campaigns. Emails are sent from your own mailbox.</p>
-        </div>
-      </div>
-      {active ? (
-        <CampaignDetail campaign={active} editable={editable} onBack={() => setActive(null)} />
-      ) : (
-        <Tabs defaultValue="campaigns">
-          <TabsList>
-            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-            <TabsTrigger value="templates">Email Templates</TabsTrigger>
-          </TabsList>
-          <TabsContent value="campaigns" className="mt-4"><CampaignsTab editable={editable} onOpen={setActive} /></TabsContent>
-          <TabsContent value="templates" className="mt-4"><TemplatesTab editable={editable} /></TabsContent>
-        </Tabs>
-      )}
-    </div>
-  );
-}
-
-function CampaignsTab({ editable, onOpen }: { editable: boolean; onOpen: (c: Campaign) => void }) {
-  const [rows, setRows] = useState<Campaign[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [contactsByCampaign, setContactsByCampaign] = useState<Record<string, CC[]>>({});
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Campaign | null>(null);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [statusTab, setStatusTab] = useState<"active" | "completed">("active");
 
-  const load = async () => {
-    const [{ data: cs }, { data: cc }] = await Promise.all([
+  const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+
+  const loadAll = async () => {
+    const [{ data: cs }, { data: cc }, { data: tp }] = await Promise.all([
       supabase.from("campaigns").select("*").order("created_at", { ascending: false }),
       supabase.from("campaign_contacts").select("*"),
+      supabase.from("email_templates").select("*").order("name"),
     ]);
-    setRows((cs ?? []) as Campaign[]);
+    setCampaigns((cs ?? []) as Campaign[]);
     const map: Record<string, CC[]> = {};
     ((cc ?? []) as CC[]).forEach((r) => { (map[r.campaign_id] ||= []).push(r); });
     setContactsByCampaign(map);
+    setTemplates((tp ?? []) as Template[]);
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void loadAll(); }, []);
+
   const { inRange } = useFiscalYear();
-  const visibleCampaigns = useMemo(() => rows.filter((c) => inRange(c.created_at)), [rows, inRange]);
-
-  const computeNext = (c: Campaign, contacts: CC[]): { label: string; date: string } => {
-    if (!contacts || contacts.length === 0) return { label: "Add contacts", date: "—" };
-    const stagesMap = (c.stages ?? {}) as StagesMap;
-    for (const stage of STAGES) {
-      const pending = contacts.filter((x) => !x.outreach?.[stage.key]?.sent_at);
-      if (pending.length > 0) {
-        const due = stagesMap[stage.key]?.due_date;
-        return { label: stage.label, date: due ? formatDateUK(due) : "Not scheduled" };
-      }
-    }
-    return { label: "Complete", date: "—" };
-  };
-
-  const remove = async (c: Campaign) => {
-    if (!confirm(`Delete campaign "${c.name}"?`)) return;
-    const { error } = await supabase.from("campaigns").delete().eq("id", c.id);
-    if (error) { toast.error(error.message); return; }
-    await logActivity({ module: "outreach", entity_type: "campaign", entity_id: c.id, verb: "deleted", summary: `Deleted campaign ${c.name}` });
-    toast.success("Deleted"); void load();
-  };
-
-  const [statusTab, setStatusTab] = useState<"active" | "completed">("active");
-  const statusBadgeClass = (s: CampaignStatus) =>
-    s === "in_progress" ? "bg-sky-100 text-sky-800 border-sky-200"
-    : s === "planned" ? "bg-slate-100 text-slate-700 border-slate-200"
-    : s === "completed" ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-    : "bg-rose-100 text-rose-800 border-rose-200";
-
+  const visibleCampaigns = useMemo(() => campaigns.filter((c) => inRange(c.created_at)), [campaigns, inRange]);
   const partitioned = useMemo(() => {
     const active: Campaign[] = [], completed: Campaign[] = [];
     for (const c of visibleCampaigns) {
       if (ACTIVE_STATUSES.includes(c.status)) active.push(c); else completed.push(c);
     }
-    // Pin in_progress at top of active list
-    active.sort((a, b) => {
-      const av = a.status === "in_progress" ? 0 : 1;
-      const bv = b.status === "in_progress" ? 0 : 1;
-      return av - bv;
-    });
+    active.sort((a, b) => (a.status === "in_progress" ? 0 : 1) - (b.status === "in_progress" ? 0 : 1));
     return { active, completed };
   }, [visibleCampaigns]);
 
+  // Auto-select the first campaign in view
+  useEffect(() => {
+    if (activeId && visibleCampaigns.some((c) => c.id === activeId)) return;
+    const list = statusTab === "active" ? partitioned.active : partitioned.completed;
+    setActiveId(list[0]?.id ?? null);
+  }, [activeId, statusTab, partitioned, visibleCampaigns]);
+
+  const active = useMemo(() => campaigns.find((c) => c.id === activeId) ?? null, [campaigns, activeId]);
+
+  const removeCampaign = async (c: Campaign) => {
+    if (!confirm(`Delete campaign "${c.name}"?`)) return;
+    const { error } = await supabase.from("campaigns").delete().eq("id", c.id);
+    if (error) { toast.error(error.message); return; }
+    await logActivity({ module: "outreach", entity_type: "campaign", entity_id: c.id, verb: "deleted", summary: `Deleted campaign ${c.name}` });
+    toast.success("Deleted"); if (activeId === c.id) setActiveId(null); void loadAll();
+  };
   const updateStatus = async (c: Campaign, next: CampaignStatus) => {
     const { error } = await supabase.from("campaigns").update({ status: next } as never).eq("id", c.id);
     if (error) { toast.error(error.message); return; }
-    void load();
+    void loadAll();
+  };
+  const removeTemplate = async (t: Template) => {
+    if (!confirm(`Delete template "${t.name}"?`)) return;
+    const { error } = await supabase.from("email_templates").delete().eq("id", t.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Deleted"); void loadAll();
   };
 
-  const renderRows = (list: Campaign[]) => (
-    list.length === 0 ? <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No campaigns.</TableCell></TableRow> :
-      list.map((c) => {
-        const contacts = contactsByCampaign[c.id] ?? [];
-        const next = computeNext(c, contacts);
-        const highlight = c.status === "in_progress" ? "bg-sky-50 hover:bg-sky-100/70 dark:bg-sky-950/30" : "";
-        return (
-          <TableRow
-            key={c.id}
-            className={`cursor-pointer hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${highlight}`}
-            tabIndex={0}
-            onClick={() => onOpen(c)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onOpen(c);
-              }
-            }}
-          >
-            <TableCell className="font-medium">{c.name}</TableCell>
-            <TableCell className="text-muted-foreground">{c.description || "—"}</TableCell>
-            <TableCell onClick={(e) => e.stopPropagation()}>
-              {editable ? (
-                <Select value={c.status} onValueChange={(v) => void updateStatus(c, v as CampaignStatus)}>
-                  <SelectTrigger className={`h-8 w-[140px] text-xs border ${statusBadgeClass(c.status)}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CAMPAIGN_STATUS_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Badge variant="outline" className={statusBadgeClass(c.status)}>
-                  {CAMPAIGN_STATUS_OPTIONS.find((o) => o.value === c.status)?.label ?? c.status}
-                </Badge>
-              )}
-            </TableCell>
-            <TableCell className="text-right">{contacts.length}</TableCell>
-            <TableCell>{next.label}</TableCell>
-            <TableCell className="text-muted-foreground">{next.date}</TableCell>
-            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-              {editable && <>
-                <Button variant="ghost" size="icon" aria-label="Edit campaign" onClick={() => { setEditing(c); setOpen(true); }}><Pencil className="size-4" /></Button>
-                <Button variant="ghost" size="icon" aria-label="Delete campaign" onClick={() => remove(c)}><Trash2 className="size-4" /></Button>
-              </>}
-            </TableCell>
-          </TableRow>
-        );
-      })
-  );
+  const list = statusTab === "active" ? partitioned.active : partitioned.completed;
 
   return (
-    <Card className="shadow-soft">
-      <CardContent className="pt-6 space-y-4">
-        <div className="flex justify-between items-center gap-2">
-          <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as "active" | "completed")}>
-            <TabsList>
-              <TabsTrigger value="active">Active ({partitioned.active.length})</TabsTrigger>
-              <TabsTrigger value="completed">Completed ({partitioned.completed.length})</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          {editable && <Button className="bg-gradient-primary text-primary-foreground" onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4 mr-2" />New campaign</Button>}
+    <div className="py-6 space-y-4">
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">Email Outreach</h1>
+        <p className="text-muted-foreground mt-1 text-sm">Plan and track campaigns. Emails are sent from your own mailbox.</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left rail */}
+        <aside className="lg:col-span-3 flex flex-col gap-6">
+          {/* Outbox */}
+          <section className="bg-card rounded-2xl border border-border/60 shadow-soft flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-border/60 space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-[11px] font-bold tracking-widest text-muted-foreground uppercase flex items-center gap-2">
+                  <Inbox className="size-3.5" /> Campaign Outbox
+                </h2>
+                {editable && (
+                  <Button size="sm" variant="ghost" className="h-7 px-2 -mr-1" aria-label="New campaign"
+                    onClick={() => { setEditingCampaign(null); setCampaignDialogOpen(true); }}>
+                    <Plus className="size-3.5" />
+                  </Button>
+                )}
+              </div>
+              <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as "active" | "completed")}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="active" className="flex-1 text-xs">Active ({partitioned.active.length})</TabsTrigger>
+                  <TabsTrigger value="completed" className="flex-1 text-xs">Completed ({partitioned.completed.length})</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="flex-1 max-h-[440px] overflow-y-auto p-2 space-y-1">
+              {list.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-6">No campaigns.</p>
+              ) : list.map((c) => {
+                const isActive = c.id === activeId;
+                const contacts = contactsByCampaign[c.id] ?? [];
+                const replies = contacts.filter((x) => x.lead_status && !["no_reply", "no_response"].includes(x.lead_status)).length;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => setActiveId(c.id)}
+                    className={`w-full text-left p-3 rounded-xl transition-colors ${
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "hover:bg-muted/60"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-semibold text-sm truncate">{c.name}</span>
+                      <span className={`px-2 py-0.5 text-[9px] rounded-full uppercase font-bold tracking-wider shrink-0 border ${
+                        isActive ? "bg-white/15 text-primary-foreground border-white/20" : statusBadgeClass(c.status)
+                      }`}>
+                        {CAMPAIGN_STATUS_OPTIONS.find((o) => o.value === c.status)?.label ?? c.status}
+                      </span>
+                    </div>
+                    <div className={`mt-2 flex gap-3 text-[10px] ${isActive ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                      <span>{contacts.length} Recipient{contacts.length === 1 ? "" : "s"}</span>
+                      <span>{replies} Repl{replies === 1 ? "y" : "ies"}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Templates */}
+          <section className="bg-card rounded-2xl border border-border/60 shadow-soft flex flex-col">
+            <div className="p-4 border-b border-border/60 flex justify-between items-center">
+              <h2 className="text-[11px] font-bold tracking-widest text-muted-foreground uppercase flex items-center gap-2">
+                <FileText className="size-3.5" /> Templates
+              </h2>
+              {editable && (
+                <Button size="sm" variant="ghost" className="h-7 px-2 -mr-1" aria-label="New template"
+                  onClick={() => { setEditingTemplate(null); setTemplateDialogOpen(true); }}>
+                  <Plus className="size-3.5" />
+                </Button>
+              )}
+            </div>
+            <div className="p-2 max-h-[280px] overflow-y-auto space-y-0.5">
+              {templates.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-6">No templates yet.</p>
+              ) : templates.map((t) => (
+                <div key={t.id} className="group flex items-center justify-between gap-2 p-2.5 rounded-xl hover:bg-muted/60 transition-colors">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-foreground truncate">{t.name}</div>
+                    {t.approved && <div className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider">Approved</div>}
+                  </div>
+                  {editable && (
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Edit template"
+                        onClick={() => { setEditingTemplate(t); setTemplateDialogOpen(true); }}>
+                        <Pencil className="size-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" aria-label="Delete template"
+                        onClick={() => removeTemplate(t)}>
+                        <Trash className="size-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        </aside>
+
+        {/* Main workspace */}
+        <main className="lg:col-span-9">
+          {active ? (
+            <CampaignWorkspace
+              campaign={active}
+              editable={editable}
+              templates={templates}
+              contacts={contactsByCampaign[active.id] ?? []}
+              onDelete={() => removeCampaign(active)}
+              onStatusChange={(v) => void updateStatus(active, v)}
+              onEdit={() => { setEditingCampaign(active); setCampaignDialogOpen(true); }}
+              onReload={loadAll}
+              onEditTemplate={(id) => {
+                const t = templates.find((x) => x.id === id);
+                if (t) { setEditingTemplate(t); setTemplateDialogOpen(true); }
+              }}
+            />
+          ) : (
+            <div className="bg-card rounded-2xl border border-border/60 shadow-soft p-12 text-center">
+              <Mail className="size-10 mx-auto text-muted-foreground/50" />
+              <p className="mt-4 text-sm text-muted-foreground">Select a campaign from the outbox, or create a new one.</p>
+              {editable && (
+                <Button className="mt-4 bg-gradient-primary text-primary-foreground"
+                  onClick={() => { setEditingCampaign(null); setCampaignDialogOpen(true); }}>
+                  <Plus className="size-4 mr-2" /> New campaign
+                </Button>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
+
+      <CampaignDialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen} campaign={editingCampaign} onSaved={loadAll} />
+      <TemplateDialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen} template={editingTemplate} onSaved={loadAll} />
+    </div>
+  );
+}
+
+function CampaignWorkspace({
+  campaign, editable, templates, contacts, onDelete, onStatusChange, onEdit, onReload, onEditTemplate,
+}: {
+  campaign: Campaign;
+  editable: boolean;
+  templates: Template[];
+  contacts: CC[];
+  onDelete: () => void;
+  onStatusChange: (v: CampaignStatus) => void;
+  onEdit: () => void;
+  onReload: () => Promise<void> | void;
+  onEditTemplate: (id: string) => void;
+}) {
+  const [leadOpts, setLeadOpts] = useState<LeadOpt[]>([]);
+  const [stages, setStages] = useState<StagesMap>(campaign.stages ?? {});
+  const [rows, setRows] = useState<CC[]>(contacts);
+  const [q, setQ] = useState("");
+  const [contactOpen, setContactOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<CC | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setStages(campaign.stages ?? {}); }, [campaign.id, campaign.stages]);
+  useEffect(() => { setRows(contacts); }, [contacts]);
+  useEffect(() => {
+    void supabase.from("lead_status_options").select("key,label").order("position")
+      .then(({ data }) => setLeadOpts((data ?? []) as LeadOpt[]));
+  }, []);
+
+  const TEMPLATE_HEADERS = ["first_name", "last_name", "email", "job_title", "organisation", "industry", "website", "notes"];
+  const downloadTemplate = () => {
+    const csv = TEMPLATE_HEADERS.join(",") + "\n";
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a"); a.href = url; a.download = "campaign_contacts_template.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+  const parseCSV = (text: string): Record<string, string>[] => {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) return [];
+    const parseLine = (line: string): string[] => {
+      const out: string[] = []; let cur = ""; let inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQ) {
+          if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+          else if (ch === '"') inQ = false;
+          else cur += ch;
+        } else {
+          if (ch === '"') inQ = true;
+          else if (ch === ",") { out.push(cur); cur = ""; }
+          else cur += ch;
+        }
+      }
+      out.push(cur); return out;
+    };
+    const headers = parseLine(lines[0]).map((h) => h.trim().toLowerCase());
+    return lines.slice(1).map((line) => {
+      const cells = parseLine(line); const row: Record<string, string> = {};
+      headers.forEach((h, i) => { row[h] = (cells[i] ?? "").trim(); });
+      return row;
+    });
+  };
+  const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; e.target.value = "";
+    if (!file) return;
+    const parsed = parseCSV(await file.text());
+    if (parsed.length === 0) { toast.error("CSV is empty"); return; }
+    if (!confirm(`Import ${parsed.length} contact(s) into "${campaign.name}"?`)) return;
+    const payload = parsed.map((r) => ({
+      campaign_id: campaign.id,
+      first_name: r.first_name || "", last_name: r.last_name || "",
+      email: r.email || null, job_title: r.job_title || null,
+      organisation: r.organisation || null, industry: r.industry || null,
+      website: r.website || null, notes: r.notes || null, lead_status: "no_reply",
+    }));
+    const { error } = await supabase.from("campaign_contacts").insert(payload);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Imported ${payload.length} contact(s)`); void onReload();
+  };
+
+  const filtered = useMemo(() => rows.filter((r) => !q || [r.first_name, r.last_name, r.email, r.organisation].some((v) => (v ?? "").toLowerCase().includes(q.toLowerCase()))), [rows, q]);
+
+  const updateStageConfig = async (stage: StageKey, patch: Partial<StageConfig>) => {
+    if (!editable) return;
+    const next: StagesMap = { ...stages, [stage]: { ...(stages[stage] || {}), ...patch } };
+    setStages(next);
+    const { error } = await supabase.from("campaigns").update({ stages: next as never }).eq("id", campaign.id);
+    if (error) { toast.error(error.message); void onReload(); }
+  };
+
+  const removeContact = async (r: CC) => {
+    if (!confirm("Delete contact?")) return;
+    const { error } = await supabase.from("campaign_contacts").delete().eq("id", r.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Deleted"); void onReload();
+  };
+
+  const updateStage = async (r: CC, stage: StageKey, next: { sent_at?: string | null } | null) => {
+    const current: OutreachMap = { ...(r.outreach || {}) };
+    if (next === null) delete current[stage]; else current[stage] = { ...(current[stage] || {}), ...next };
+    setRows((prev) => prev.map((x) => x.id === r.id ? { ...x, outreach: current } : x));
+    const { error } = await supabase.from("campaign_contacts").update({ outreach: current as never }).eq("id", r.id);
+    if (error) { toast.error(error.message); void onReload(); }
+  };
+  const toggleStage = (r: CC, stage: StageKey, checked: boolean) => {
+    if (!editable) return;
+    if (checked) void updateStage(r, stage, { sent_at: new Date().toISOString() });
+    else void updateStage(r, stage, null);
+  };
+
+  // For the "Template Association" summary dropdown at bottom — writes to all stages that don't yet have a template
+  const anyTemplateId = stages.first_email?.template_id ?? stages.second_email?.template_id ?? stages.third_email?.template_id ?? null;
+
+  return (
+    <div className="bg-card rounded-2xl border border-border/60 shadow-soft p-6 md:p-8 space-y-8">
+      {/* Header */}
+      <div className="flex justify-between items-start gap-4 flex-wrap">
+        <div className="space-y-2 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="px-2.5 py-1 bg-muted text-foreground text-[10px] font-bold rounded-lg uppercase tracking-wider">Campaign Engine</span>
+            {editable ? (
+              <Select value={campaign.status} onValueChange={(v) => onStatusChange(v as CampaignStatus)}>
+                <SelectTrigger className={`h-7 w-auto gap-2 text-[10px] font-bold uppercase tracking-wider border ${statusBadgeClass(campaign.status)}`}>
+                  <span>Stage: <SelectValue /></span>
+                </SelectTrigger>
+                <SelectContent>
+                  {CAMPAIGN_STATUS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg uppercase tracking-wider border ${statusBadgeClass(campaign.status)}`}>
+                Stage: {CAMPAIGN_STATUS_OPTIONS.find((o) => o.value === campaign.status)?.label}
+              </span>
+            )}
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground pt-1 truncate">{campaign.name}</h1>
+          {campaign.description && <p className="text-sm text-muted-foreground italic">{campaign.description}</p>}
         </div>
-        <Table>
-          <TableHeader><TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Contacts</TableHead>
-            <TableHead>Next action</TableHead>
-            <TableHead>Next action date</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow></TableHeader>
-          <TableBody>
-            {statusTab === "active" ? renderRows(partitioned.active) : renderRows(partitioned.completed)}
-          </TableBody>
-        </Table>
-        <CampaignDialog open={open} onOpenChange={setOpen} campaign={editing} onSaved={load} />
-      </CardContent>
-    </Card>
+        {editable && (
+          <div className="flex gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={onEdit}><Pencil className="size-3.5 mr-2" />Edit</Button>
+            <Button variant="outline" size="sm" onClick={onDelete}
+              className="border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive">
+              <Trash2 className="size-3.5 mr-2" />Delete Campaign
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Sequence */}
+      <section>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="p-1.5 bg-muted rounded-lg">
+            <Zap className="size-4 text-foreground" />
+          </div>
+          <h3 className="text-xs font-bold text-foreground uppercase tracking-widest">Automation Sequence</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {STAGES.map((s, idx) => {
+            const cfg = stages[s.key] || {};
+            const linked = templates.find((t) => t.id === cfg.template_id);
+            return (
+              <div key={s.key} className="relative bg-muted/40 rounded-2xl p-5 border border-border/60 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 bg-card shadow-sm border border-border/60 rounded-full flex items-center justify-center text-xs font-bold text-foreground">
+                    {idx + 1}
+                  </div>
+                  {linked && (
+                    <button
+                      type="button"
+                      onClick={() => onEditTemplate(linked.id)}
+                      className="text-[10px] uppercase tracking-wider font-bold text-primary hover:underline flex items-center gap-1"
+                    >
+                      <FileText className="size-3" /> {linked.name}
+                    </button>
+                  )}
+                </div>
+                <div>
+                  <h4 className="font-bold text-foreground text-sm">{s.label}</h4>
+                </div>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Planned</Label>
+                    <Input
+                      type="date"
+                      className="h-8 bg-card"
+                      value={cfg.due_date ?? ""}
+                      disabled={!editable}
+                      onChange={(e) => void updateStageConfig(s.key, { due_date: e.target.value || null })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Template</Label>
+                    <Select
+                      value={cfg.template_id ?? "__none__"}
+                      onValueChange={(v) => void updateStageConfig(s.key, { template_id: v === "__none__" ? null : v })}
+                      disabled={!editable}
+                    >
+                      <SelectTrigger className="h-8 text-xs bg-card"><SelectValue placeholder="Select template" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">None</SelectItem>
+                        {templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Template quick-open */}
+      {anyTemplateId && (
+        <section>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-1.5 bg-muted rounded-lg text-muted-foreground"><FileText className="size-4" /></div>
+            <h3 className="text-xs font-bold text-foreground uppercase tracking-widest">Template Association</h3>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => onEditTemplate(anyTemplateId)}>
+            <ExternalLink className="size-3.5 mr-2" />
+            Open {templates.find((t) => t.id === anyTemplateId)?.name ?? "template"}
+          </Button>
+        </section>
+      )}
+
+      {/* Receivers */}
+      <section>
+        <div className="flex justify-between items-center gap-3 mb-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 bg-muted rounded-lg text-muted-foreground"><Users className="size-4" /></div>
+            <h3 className="text-sm font-bold text-foreground uppercase tracking-widest">Target Receivers ({rows.length})</h3>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
+              <Input className="pl-8 h-9 w-[200px]" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+            </div>
+            {editable && <>
+              <Button variant="outline" size="sm" onClick={downloadTemplate}><Download className="size-3.5 mr-2" />CSV</Button>
+              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload className="size-3.5 mr-2" />Import</Button>
+              <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={onImport} />
+              <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90"
+                onClick={() => { setEditingContact(null); setContactOpen(true); }}>
+                <Plus className="size-3.5 mr-2" />Add Recipient
+              </Button>
+            </>}
+          </div>
+        </div>
+
+        <div className="border border-border/60 rounded-2xl overflow-hidden overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead>Contact</TableHead>
+                <TableHead>Organisation</TableHead>
+                <TableHead>Lead status</TableHead>
+                {STAGES.map((s) => <TableHead key={s.key} className="whitespace-nowrap">{s.label}</TableHead>)}
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.length === 0 ? (
+                <TableRow><TableCell colSpan={4 + STAGES.length} className="text-center text-muted-foreground py-8">No contacts in this campaign.</TableCell></TableRow>
+              ) : filtered.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell>
+                    <div className="font-semibold text-sm text-foreground">{r.first_name} {r.last_name}</div>
+                    {r.email && <div className="text-xs text-muted-foreground">{r.email}</div>}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    <div>{r.organisation || "—"}</div>
+                    {r.job_title && <div className="text-xs text-muted-foreground">{r.job_title}</div>}
+                  </TableCell>
+                  <TableCell>
+                    {editable ? (
+                      <Select
+                        value={r.lead_status}
+                        onValueChange={async (v) => {
+                          setRows((prev) => prev.map((x) => x.id === r.id ? { ...x, lead_status: v } : x));
+                          const { error } = await supabase.from("campaign_contacts").update({ lead_status: v }).eq("id", r.id);
+                          if (error) { toast.error(error.message); void onReload(); }
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-[150px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>{leadOpts.map((o) => <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge variant="secondary">{leadOpts.find((o) => o.key === r.lead_status)?.label ?? r.lead_status}</Badge>
+                    )}
+                  </TableCell>
+                  {STAGES.map((s) => {
+                    const stageData = r.outreach?.[s.key];
+                    const checked = !!stageData?.sent_at;
+                    return (
+                      <TableCell key={s.key} className="whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <Checkbox checked={checked} disabled={!editable} onCheckedChange={(v) => toggleStage(r, s.key, !!v)} />
+                          <span className="text-xs text-muted-foreground tabular-nums w-[80px]">
+                            {checked ? formatDateUK(stageData?.sent_at) : "—"}
+                          </span>
+                        </div>
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell className="text-right">
+                    {editable && <>
+                      <Button variant="ghost" size="icon" aria-label="Edit contact" onClick={() => { setEditingContact(r); setContactOpen(true); }}><Pencil className="size-4" /></Button>
+                      <Button variant="ghost" size="icon" aria-label="Delete contact" onClick={() => removeContact(r)}><Trash2 className="size-4" /></Button>
+                    </>}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        <CCDialog open={contactOpen} onOpenChange={setContactOpen} contact={editingContact} campaignId={campaign.id} leadOpts={leadOpts} onSaved={onReload} />
+      </section>
+    </div>
   );
 }
 
@@ -266,290 +624,8 @@ function CampaignDialog({ open, onOpenChange, campaign, onSaved }: { open: boole
   );
 }
 
-function CampaignDetail({ campaign, editable, onBack }: { campaign: Campaign; editable: boolean; onBack: () => void }) {
-  const [rows, setRows] = useState<CC[]>([]);
-  const [leadOpts, setLeadOpts] = useState<LeadOpt[]>([]);
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [stages, setStages] = useState<StagesMap>(campaign.stages ?? {});
-  const [editTemplate, setEditTemplate] = useState<Template | null>(null);
-  const [templateOpen, setTemplateOpen] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const TEMPLATE_HEADERS = ["first_name", "last_name", "email", "job_title", "organisation", "industry", "website", "notes"];
-
-  const downloadTemplate = () => {
-    const csv = TEMPLATE_HEADERS.join(",") + "\n";
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "campaign_contacts_template.csv"; a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const parseCSV = (text: string): Record<string, string>[] => {
-    const lines = text.split(/\r?\n/).filter((l) => l.trim());
-    if (lines.length < 2) return [];
-    const parseLine = (line: string): string[] => {
-      const out: string[] = []; let cur = ""; let inQ = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (inQ) {
-          if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
-          else if (ch === '"') { inQ = false; }
-          else cur += ch;
-        } else {
-          if (ch === '"') inQ = true;
-          else if (ch === ",") { out.push(cur); cur = ""; }
-          else cur += ch;
-        }
-      }
-      out.push(cur); return out;
-    };
-    const headers = parseLine(lines[0]).map((h) => h.trim().toLowerCase());
-    return lines.slice(1).map((line) => {
-      const cells = parseLine(line);
-      const row: Record<string, string> = {};
-      headers.forEach((h, i) => { row[h] = (cells[i] ?? "").trim(); });
-      return row;
-    });
-  };
-
-  const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; e.target.value = "";
-    if (!file) return;
-    const text = await file.text();
-    const parsed = parseCSV(text);
-    if (parsed.length === 0) { toast.error("CSV is empty"); return; }
-    if (!confirm(`Import ${parsed.length} contact(s) into "${campaign.name}"?`)) return;
-    const payload = parsed.map((r) => ({
-      campaign_id: campaign.id,
-      first_name: r.first_name || "",
-      last_name: r.last_name || "",
-      email: r.email || null,
-      job_title: r.job_title || null,
-      organisation: r.organisation || null,
-      industry: r.industry || null,
-      website: r.website || null,
-      notes: r.notes || null,
-      lead_status: "no_reply",
-    }));
-    const { error } = await supabase.from("campaign_contacts").insert(payload);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`Imported ${payload.length} contact(s)`);
-    void load();
-  };
-
-  const [q, setQ] = useState("");
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<CC | null>(null);
-
-  const load = async () => {
-    const [{ data: c }, { data: l }, { data: t }, { data: cm }] = await Promise.all([
-      supabase.from("campaign_contacts").select("*").eq("campaign_id", campaign.id).order("created_at"),
-      supabase.from("lead_status_options").select("key,label").order("position"),
-      supabase.from("email_templates").select("*").order("name"),
-      supabase.from("campaigns").select("stages").eq("id", campaign.id).maybeSingle(),
-    ]);
-    setRows((c ?? []) as CC[]);
-    setLeadOpts((l ?? []) as LeadOpt[]);
-    setTemplates((t ?? []) as Template[]);
-    setStages(((cm?.stages ?? {}) as StagesMap));
-  };
-  useEffect(() => { void load(); }, [campaign.id]);
-
-  const filtered = useMemo(() => rows.filter((r) => !q || [r.first_name, r.last_name, r.email, r.organisation].some((v) => (v ?? "").toLowerCase().includes(q.toLowerCase()))), [rows, q]);
-
-  const updateStageConfig = async (stage: StageKey, patch: Partial<StageConfig>) => {
-    if (!editable) return;
-    const next: StagesMap = { ...stages, [stage]: { ...(stages[stage] || {}), ...patch } };
-    setStages(next);
-    const { error } = await supabase.from("campaigns").update({ stages: next as never }).eq("id", campaign.id);
-    if (error) { toast.error(error.message); void load(); }
-  };
-
-  const openTemplate = (id: string | null | undefined) => {
-    const t = templates.find((x) => x.id === id);
-    if (!t) { toast.error("Select a template first"); return; }
-    setEditTemplate(t);
-    setTemplateOpen(true);
-  };
-
-  const remove = async (r: CC) => {
-    if (!confirm("Delete contact?")) return;
-    const { error } = await supabase.from("campaign_contacts").delete().eq("id", r.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Deleted"); void load();
-  };
-
-  const updateStage = async (r: CC, stage: StageKey, next: { sent_at?: string | null } | null) => {
-    const current: OutreachMap = { ...(r.outreach || {}) };
-    if (next === null) {
-      delete current[stage];
-    } else {
-      current[stage] = { ...(current[stage] || {}), ...next };
-    }
-    // optimistic
-    setRows((prev) => prev.map((x) => x.id === r.id ? { ...x, outreach: current } : x));
-    const { error } = await supabase.from("campaign_contacts").update({ outreach: current as never }).eq("id", r.id);
-    if (error) { toast.error(error.message); void load(); }
-  };
-
-  const toggleStage = (r: CC, stage: StageKey, checked: boolean) => {
-    if (!editable) return;
-    if (checked) void updateStage(r, stage, { sent_at: new Date().toISOString() });
-    else void updateStage(r, stage, null);
-  };
-
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="size-4 mr-1" />Campaigns</Button>
-        <div>
-          <h2 className="text-xl font-semibold">{campaign.name}</h2>
-          {campaign.description && <p className="text-sm text-muted-foreground">{campaign.description}</p>}
-        </div>
-      </div>
-
-      <Card className="shadow-soft">
-        <CardContent className="pt-6 space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold">Outreach schedule</h3>
-            <p className="text-xs text-muted-foreground">Set a due date and link an email template for each stage of this campaign.</p>
-          </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            {STAGES.map((s) => {
-              const cfg = stages[s.key] || {};
-              const linked = templates.find((t) => t.id === cfg.template_id);
-              return (
-                <div key={s.key} className="rounded-md border bg-card/40 p-3 space-y-2">
-                  <div className="text-sm font-medium">{s.label}</div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Due date</Label>
-                    <Input
-                      type="date"
-                      className="h-8"
-                      value={cfg.due_date ?? ""}
-                      disabled={!editable}
-                      onChange={(e) => void updateStageConfig(s.key, { due_date: e.target.value || null })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Email template</Label>
-                    <div className="flex gap-1">
-                      <Select
-                        value={cfg.template_id ?? "__none__"}
-                        onValueChange={(v) => void updateStageConfig(s.key, { template_id: v === "__none__" ? null : v })}
-                        disabled={!editable}
-                      >
-                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select template" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">None</SelectItem>
-                          {templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-11 w-11 shrink-0 md:h-8 md:w-8"
-                        aria-label={linked ? `Open ${linked.name}` : "Open selected template"}
-                        title={linked ? `Open "${linked.name}"` : "Select a template first"}
-                        disabled={!linked}
-                        onClick={() => openTemplate(cfg.template_id)}
-                      >
-                        <ExternalLink className="size-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-soft">
-        <CardContent className="pt-6 space-y-4">
-          <div className="flex gap-2 items-center flex-wrap">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
-              <Input className="pl-8" placeholder="Search contacts" value={q} onChange={(e) => setQ(e.target.value)} />
-            </div>
-            {editable && <div className="flex gap-2 ml-auto">
-              <Button variant="outline" onClick={downloadTemplate}><Download className="size-4 mr-2" />CSV template</Button>
-              <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="size-4 mr-2" />Import CSV</Button>
-              <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={onImport} />
-              <Button className="bg-gradient-primary text-primary-foreground" onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4 mr-2" />Add contact</Button>
-            </div>}
-          </div>
-          <div className="overflow-x-auto">
-          <Table>
-            <TableHeader><TableRow>
-              <TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Organisation</TableHead>
-              <TableHead>Lead status</TableHead>
-              {STAGES.map((s) => <TableHead key={s.key} className="whitespace-nowrap">{s.label}</TableHead>)}
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-              {filtered.length === 0 ? <TableRow><TableCell colSpan={5 + STAGES.length} className="text-center text-muted-foreground py-8">No contacts in this campaign.</TableCell></TableRow> :
-                filtered.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.first_name} {r.last_name}</TableCell>
-                    <TableCell>{r.email || "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{r.organisation || "—"}</TableCell>
-                    <TableCell>
-                      {editable ? (
-                        <Select
-                          value={r.lead_status}
-                          onValueChange={async (v) => {
-                            setRows((prev) => prev.map((x) => x.id === r.id ? { ...x, lead_status: v } : x));
-                            const { error } = await supabase.from("campaign_contacts").update({ lead_status: v }).eq("id", r.id);
-                            if (error) { toast.error(error.message); void load(); }
-                          }}
-                        >
-                          <SelectTrigger className="h-8 w-[150px]"><SelectValue /></SelectTrigger>
-                          <SelectContent>{leadOpts.map((o) => <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>)}</SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge variant="secondary">{leadOpts.find((o) => o.key === r.lead_status)?.label ?? r.lead_status}</Badge>
-                      )}
-                    </TableCell>
-                    {STAGES.map((s) => {
-                      const stageData = r.outreach?.[s.key];
-                      const checked = !!stageData?.sent_at;
-                      return (
-                        <TableCell key={s.key} className="whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <Checkbox checked={checked} disabled={!editable} onCheckedChange={(v) => toggleStage(r, s.key, !!v)} />
-                            <span className="text-sm text-muted-foreground tabular-nums w-[100px]">
-                              {checked ? formatDateUK(stageData?.sent_at) : "—"}
-                            </span>
-                          </div>
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell className="text-right">
-                      {editable && <>
-                        <Button variant="ghost" size="icon" aria-label="Edit contact" onClick={() => { setEditing(r); setOpen(true); }}><Pencil className="size-4" /></Button>
-                        <Button variant="ghost" size="icon" aria-label="Delete contact" onClick={() => remove(r)}><Trash2 className="size-4" /></Button>
-                      </>}
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-          </div>
-          <CCDialog open={open} onOpenChange={setOpen} contact={editing} campaignId={campaign.id} leadOpts={leadOpts} onSaved={load} />
-        </CardContent>
-      </Card>
-      <TemplateDialog open={templateOpen} onOpenChange={setTemplateOpen} template={editTemplate} onSaved={load} />
-    </div>
-  );
-}
-
 function CCDialog({ open, onOpenChange, contact, campaignId, leadOpts, onSaved }: {
-  open: boolean; onOpenChange: (o: boolean) => void; contact: CC | null; campaignId: string; leadOpts: LeadOpt[]; onSaved: () => void;
+  open: boolean; onOpenChange: (o: boolean) => void; contact: CC | null; campaignId: string; leadOpts: LeadOpt[]; onSaved: () => void | Promise<void>;
 }) {
   const [first, setFirst] = useState(""); const [last, setLast] = useState("");
   const [email, setEmail] = useState(""); const [org, setOrg] = useState("");
@@ -581,7 +657,7 @@ function CCDialog({ open, onOpenChange, contact, campaignId, leadOpts, onSaved }
       const { error } = await supabase.from("campaign_contacts").insert(payload);
       if (error) { toast.error(error.message); return; }
     }
-    toast.success("Saved"); onOpenChange(false); onSaved();
+    toast.success("Saved"); onOpenChange(false); await onSaved();
   };
 
   return (
@@ -614,55 +690,6 @@ function CCDialog({ open, onOpenChange, contact, campaignId, leadOpts, onSaved }
         </SheetFooter>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function TemplatesTab({ editable }: { editable: boolean }) {
-  const [rows, setRows] = useState<Template[]>([]);
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Template | null>(null);
-
-  const load = async () => {
-    const { data } = await supabase.from("email_templates").select("*").order("name");
-    setRows((data ?? []) as Template[]);
-  };
-  useEffect(() => { void load(); }, []);
-
-  const remove = async (t: Template) => {
-    if (!confirm(`Delete template "${t.name}"?`)) return;
-    const { error } = await supabase.from("email_templates").delete().eq("id", t.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Deleted"); void load();
-  };
-
-  return (
-    <Card className="shadow-soft">
-      <CardContent className="pt-6 space-y-4">
-        <div className="flex justify-end">
-          {editable && <Button className="bg-gradient-primary text-primary-foreground" onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4 mr-2" />New email template</Button>}
-        </div>
-        <Table>
-          <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Subject</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-          <TableBody>
-            {rows.length === 0 ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No templates yet.</TableCell></TableRow> :
-              rows.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell className="font-medium">{t.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{t.subject}</TableCell>
-                  <TableCell>{t.approved ? <Badge>Approved</Badge> : <Badge variant="secondary">Draft</Badge>}</TableCell>
-                  <TableCell className="text-right">
-                    {editable && <>
-                      <Button variant="ghost" size="icon" aria-label="Edit email template" onClick={() => { setEditing(t); setOpen(true); }}><Pencil className="size-4" /></Button>
-                      <Button variant="ghost" size="icon" aria-label="Delete email template" onClick={() => remove(t)}><Trash2 className="size-4" /></Button>
-                    </>}
-                  </TableCell>
-                </TableRow>
-              ))}
-          </TableBody>
-        </Table>
-        <TemplateDialog open={open} onOpenChange={setOpen} template={editing} onSaved={load} />
-      </CardContent>
-    </Card>
   );
 }
 
