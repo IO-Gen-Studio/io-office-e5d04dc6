@@ -15,9 +15,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/DataTable";
-import { Plus, Pencil, Trash2, ArrowLeft, FolderOpen, ChevronDown, FileDown } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, FolderOpen, FileDown } from "lucide-react";
 import { generateCostProposalPdf, fetchCostItems } from "@/lib/cost-proposal-pdf";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 import { toast } from "sonner";
 import { CustomFieldValues } from "@/components/CustomFieldValues";
 import { QuickCreateOrgDialog, QuickCreateContactDialog } from "@/components/QuickCreateCrm";
