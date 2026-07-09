@@ -342,7 +342,10 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
         {/* Left: Portfolio Rail */}
         <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto pr-1">
           <h3 className="px-1 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Subscriptions</h3>
-          {siblings.map((s) => {
+          {(() => {
+            const rank = (s: Sub) => s.status === "active" ? 0 : s.status === "pending_renewal" ? 1 : 2;
+            const sorted = [...siblings].sort((a, b) => rank(a) - rank(b));
+            return sorted.map((s) => {
             const isActive = s.id === sub.id;
             const sClient = orgs.find((o) => o.id === s.client_org_id)?.name ?? "—";
             return (
