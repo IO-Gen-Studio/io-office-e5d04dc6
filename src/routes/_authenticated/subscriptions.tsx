@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DataTable, type DataTableColumn } from "@/components/DataTable";
-import { Plus, Pencil, Trash2, ArrowLeft, FolderOpen, ChevronDown, FileDown } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, FolderOpen, ChevronDown, FileDown, List as ListIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { generateCostProposalPdf, fetchCostItems } from "@/lib/cost-proposal-pdf";
 import { toast } from "sonner";
