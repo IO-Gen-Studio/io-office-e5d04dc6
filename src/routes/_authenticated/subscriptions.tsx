@@ -189,24 +189,29 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [planOpts, setPlanOpts] = useState<PlanOpt[]>([]);
   const [projects, setProjects] = useState<LinkedProject[]>([]);
+  const [siblings, setSiblings] = useState<Sub[]>([]);
   const [openEdit, setOpenEdit] = useState(false);
   const [customLabel, setCustomLabel] = useState("");
   const seededRef = useRef<Set<string>>(new Set());
 
   const cycleLabel = useBuiltinFieldLabel("subscriptions", "billing_cycle");
   const statusLabel = useBuiltinFieldLabel("subscriptions", "status");
+  const statusOptions = useBuiltinFieldOptions("subscriptions", "status");
+  const cycleOptions = useBuiltinFieldOptions("subscriptions", "billing_cycle");
 
   const load = async () => {
-    const [{ data: m }, { data: o }, { data: c }, { data: p }, { data: fresh }, { data: pj }] = await Promise.all([
+    const [{ data: m }, { data: o }, { data: c }, { data: p }, { data: fresh }, { data: pj }, { data: sibs }] = await Promise.all([
       supabase.from("milestones").select("*").eq("parent_id", sub.id).eq("parent_type", "subscription").order("position"),
       supabase.from("organisations").select("id,name").order("name"),
       supabase.from("contacts").select("id,first_name,last_name,organisation_id").order("last_name"),
       supabase.from("subscription_plan_options").select("*").order("position"),
       supabase.from("subscriptions").select("*").eq("id", sub.id).single(),
       supabase.from("projects").select("id,title,type").order("title"),
+      supabase.from("subscriptions").select("*").order("renewal_date", { ascending: true, nullsFirst: false }),
     ]);
     setPlanOpts((p ?? []) as PlanOpt[]);
     setProjects((pj ?? []) as LinkedProject[]);
+    setSiblings((sibs ?? []) as Sub[]);
     let ms = (m ?? []) as Milestone[];
     if (ms.length === 0 && !seededRef.current.has(sub.id)) {
       seededRef.current.add(sub.id);
@@ -257,24 +262,35 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
     if (error) { toast.error(error.message); return; }
     void load();
   };
+  const updateSubField = async (patch: Partial<Sub>) => {
+    const { error } = await supabase.from("subscriptions").update(patch as never).eq("id", sub.id);
+    if (error) { toast.error(error.message); return; }
+    void load();
+  };
+
+  const progress = milestones.length === 0 ? 0
+    : Math.round((milestones.filter((m) => m.completed_at).length / milestones.length) * 100);
+  const done = milestones.filter((m) => m.completed_at).length;
+
+  const clientName = orgs.find((o) => o.id === sub.client_org_id)?.name ?? "—";
+  const linkedProject = projects.find((p) => p.id === sub.project_id);
+
+  const statusChipClass =
+    sub.status === "active" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+    : sub.status === "past_due" ? "bg-destructive/10 text-destructive"
+    : sub.status === "pending_renewal" ? "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+    : "bg-muted text-muted-foreground";
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="size-4 mr-1" />Back</Button>
-        <div className="flex-1">
-          <h2 className="text-xl font-semibold">{orgs.find((o) => o.id === sub.client_org_id)?.name ?? "—"}</h2>
-          <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{sub.plan_name}</span> · {cycleLabel(sub.billing_cycle)}
-          </p>
-          <p className="text-sm text-muted-foreground">{statusLabel(sub.status)}</p>
-        </div>
+        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="size-4 mr-1" />Back to list</Button>
+        <div className="flex-1" />
         <Button
           variant="outline"
           onClick={async () => {
             try {
               const items = await fetchCostItems("subscription", sub.id);
-              const linkedProject = sub.project_id ? projects.find((p) => p.id === sub.project_id) : null;
               let extraSection;
               if (linkedProject) {
                 const include = window.confirm(
@@ -303,122 +319,204 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
         {editable && <Button variant="outline" onClick={() => setOpenEdit(true)}><Pencil className="size-4 mr-2" />Edit</Button>}
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
-        <StatCard label="Final Costs" value={formatGBP(sub.cost)} />
-        <StatCard label="Billing cycle" value={cycleLabel(sub.billing_cycle)} />
-        <StatCard label="Renewal" value={formatDateUK(sub.renewal_date) || "—"} />
-      </div>
+      <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+        {/* Left: Portfolio Rail */}
+        <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto pr-1">
+          <h3 className="px-1 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Subscriptions</h3>
+          {siblings.map((s) => {
+            const isActive = s.id === sub.id;
+            const sClient = orgs.find((o) => o.id === s.client_org_id)?.name ?? "—";
+            return (
+              <button
+                key={s.id}
+                onClick={() => !isActive && onSaved(s)}
+                className={
+                  isActive
+                    ? "w-full text-left p-5 rounded-3xl bg-primary text-primary-foreground shadow-xl relative overflow-hidden"
+                    : "w-full text-left p-5 rounded-2xl bg-card border border-border hover:border-foreground/20 transition-colors"
+                }
+              >
+                {isActive && <div className="absolute -top-8 -right-8 w-32 h-32 bg-primary-foreground/5 rounded-full blur-2xl" />}
+                <div className="relative">
+                  <h4 className={`font-bold text-sm leading-snug line-clamp-2 ${isActive ? "" : "text-foreground"}`}>{s.plan_name}</h4>
+                  <p className={`text-[11px] mt-1 truncate ${isActive ? "opacity-80" : "text-muted-foreground"}`}>{sClient}</p>
+                  <div className="mt-3 flex justify-between items-end">
+                    <span className={`text-sm font-medium ${isActive ? "opacity-90" : "text-muted-foreground"}`}>{formatGBP(s.cost)}</span>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? "opacity-60" : "text-muted-foreground"}`}>{cycleLabel(s.billing_cycle)}</span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <span className={`text-[9px] px-2 py-0.5 rounded-md font-semibold uppercase tracking-wider ${isActive ? "bg-primary-foreground/10 border border-primary-foreground/10" : "bg-muted text-muted-foreground"}`}>
+                      {statusLabel(s.status)}
+                    </span>
+                    {s.renewal_date && (
+                      <span className={`text-[9px] px-2 py-0.5 rounded-md font-semibold uppercase tracking-wider ${isActive ? "bg-primary-foreground/10 border border-primary-foreground/10" : "bg-muted text-muted-foreground"}`}>
+                        {formatDateUK(s.renewal_date)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </aside>
 
-      <Card className="shadow-soft">
-        <CardContent className="pt-6 space-y-3">
-          <h3 className="font-semibold">Details</h3>
-          <div className="grid md:grid-cols-2 gap-3 text-sm">
-            <Info label="Client" value={orgs.find((o) => o.id === sub.client_org_id)?.name ?? "—"} />
-            <Info label="Contact" value={(() => { const c = contacts.find((x) => x.id === sub.client_contact_id); return c ? `${c.first_name} ${c.last_name}` : "—"; })()} />
-            <Info label="Status" value={statusLabel(sub.status)} />
-            <Info label="Renewal date" value={formatDateUK(sub.renewal_date) || "—"} />
-            <Info label="Linked project / work" value={(() => { const p = projects.find((x) => x.id === sub.project_id); return p ? `${p.title} (${p.type === "work" ? "Work" : "Project"})` : "—"; })()} />
+        {/* Right: Main Detail Panel */}
+        <div className="bg-card rounded-[2rem] border border-border shadow-sm overflow-hidden">
+          {/* Header */}
+          <div className="p-8 pb-6">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+              <div className="flex flex-wrap gap-2">
+                <span className="px-3 py-1 bg-muted text-muted-foreground text-[10px] font-bold rounded-lg uppercase tracking-wide">Subscription Ledger</span>
+                <span className={`px-3 py-1 text-[10px] font-bold rounded-lg uppercase tracking-wide ${statusChipClass}`}>Status: {statusLabel(sub.status)}</span>
+                <span className="px-3 py-1 bg-muted text-muted-foreground text-[10px] font-bold rounded-lg uppercase tracking-wide">Client: {clientName}</span>
+                {linkedProject && (
+                  <span className="px-3 py-1 bg-muted text-muted-foreground text-[10px] font-bold rounded-lg uppercase tracking-wide">
+                    Linked: {linkedProject.title}
+                  </span>
+                )}
+              </div>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">{sub.plan_name}</h2>
+            {sub.description && (
+              <p className="mt-3 text-sm text-muted-foreground whitespace-pre-wrap max-w-3xl">{sub.description}</p>
+            )}
           </div>
-          {sub.description && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{sub.description}</p>}
-          <CustomFieldDisplay module="subscriptions" value={sub.custom} />
-        </CardContent>
-      </Card>
 
-      <Collapsible defaultOpen>
-        <Card className="shadow-soft">
-          <CardContent className="pt-6 space-y-4">
-            <CollapsibleTrigger asChild>
-              <Button type="button" variant="ghost" className="group h-auto min-h-11 w-full justify-between px-0 text-left hover:bg-transparent">
-                <h3 className="font-semibold">Cost Breakdown</h3>
-                <ChevronDown className="size-4 transition-transform group-data-[state=closed]:-rotate-90" />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4">
-              <CostBreakdown
-                parentType="subscription"
-                parentId={sub.id}
-                editable={editable}
-                onTotalsChange={async ({ final }) => {
-                  if (Number(sub.cost) === final) return;
-                  await supabase.from("subscriptions").update({ cost: final }).eq("id", sub.id);
-                  void load();
-                }}
-              />
-            </CollapsibleContent>
-          </CardContent>
-        </Card>
-      </Collapsible>
+          {/* KPI Attribute Row */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 border-y border-border/60">
+            <div className="p-6 lg:border-r border-b lg:border-b-0 border-border/60">
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] mb-2">Final Costs</label>
+              <span className="text-2xl font-bold text-foreground">{formatGBP(sub.cost)}</span>
+              <p className="text-[10px] text-muted-foreground mt-1">{cycleLabel(sub.billing_cycle)}</p>
+            </div>
+            <div className="p-6 lg:border-r border-b lg:border-b-0 border-border/60">
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] mb-2">Status</label>
+              {editable ? (
+                <Select value={sub.status} onValueChange={(v) => updateSubField({ status: v as SStatus })}>
+                  <SelectTrigger className="border-0 bg-transparent p-0 h-auto text-sm font-semibold shadow-none focus:ring-0"><SelectValue /></SelectTrigger>
+                  <SelectContent>{statusOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                </Select>
+              ) : <span className="text-sm font-semibold">{statusLabel(sub.status)}</span>}
+            </div>
+            <div className="p-6 lg:border-r border-border/60">
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] mb-2">Billing Cycle</label>
+              {editable ? (
+                <Select value={sub.billing_cycle} onValueChange={(v) => updateSubField({ billing_cycle: v })}>
+                  <SelectTrigger className="border-0 bg-transparent p-0 h-auto text-sm font-semibold shadow-none focus:ring-0"><SelectValue /></SelectTrigger>
+                  <SelectContent>{cycleOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                </Select>
+              ) : <span className="text-sm font-semibold">{cycleLabel(sub.billing_cycle)}</span>}
+            </div>
+            <div className="p-6">
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] mb-2">Renewal</label>
+              {editable ? (
+                <Input
+                  type="date"
+                  value={sub.renewal_date ?? ""}
+                  onChange={(e) => updateSubField({ renewal_date: e.target.value || null })}
+                  className="border-0 bg-transparent p-0 h-auto text-sm font-semibold shadow-none focus:ring-0"
+                />
+              ) : <span className="text-sm font-semibold">{formatDateUK(sub.renewal_date) || "—"}</span>}
+            </div>
+          </div>
 
-      <Card className="shadow-soft">
-        <CardContent className="pt-6">
-          <Tabs defaultValue="milestones">
-            <TabsList>
-              <TabsTrigger value="milestones">Milestones</TabsTrigger>
-              <TabsTrigger value="todos">To-dos</TabsTrigger>
-            </TabsList>
-            <TabsContent value="milestones" className="mt-4 space-y-4">
-              {milestones.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No milestones yet.</p>
-              ) : (
-                <div className="overflow-auto rounded-md border">
-                  <table className="w-full text-sm">
-                    <thead className="border-b bg-muted/30">
-                      <tr>
-                        <th className="text-left p-2 w-10">Done</th>
-                        <th className="text-left p-2">Milestone</th>
-                        <th className="text-left p-2 w-44">Due date</th>
-                        <th className="text-left p-2 w-32">Completed</th>
-                        {editable && <th className="text-right p-2 w-10" />}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {milestones.map((m) => (
-                        <tr key={m.id} className="border-b">
-                          <td className="p-2">
-                            <Checkbox
-                              checked={!!m.completed_at}
-                              onCheckedChange={(c) => editable && toggleCompleted(m, c === true)}
-                              disabled={!editable}
-                            />
-                          </td>
-                          <td className={`p-2 ${m.completed_at ? "line-through text-muted-foreground" : ""}`}>{m.label}</td>
-                          <td className="p-2">
-                            <Input
-                              type="date"
-                              value={m.due_date ?? ""}
-                              disabled={!editable}
-                              onChange={(e) => updateDueDate(m, e.target.value || null)}
-                              className="h-8 text-sm"
-                            />
-                          </td>
-                          <td className="p-2 text-muted-foreground">{formatDateUK(m.completed_at)}</td>
-                          {editable && <td className="p-2 text-right">
-                            {m.is_custom && <Button variant="ghost" size="icon" aria-label="Delete custom milestone" onClick={() => removeMilestone(m)}><Trash2 className="size-4" /></Button>}
-                          </td>}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+          {/* Details Sub-Card */}
+          <div className="px-8 py-5 bg-muted/20 border-b border-border/60 text-sm">
+            <div className="grid md:grid-cols-3 gap-3">
+              <Info label="Contact" value={(() => { const c = contacts.find((x) => x.id === sub.client_contact_id); return c ? `${c.first_name} ${c.last_name}` : "—"; })()} />
+              <Info label="Linked project / work" value={linkedProject ? `${linkedProject.title} (${linkedProject.type === "work" ? "Work" : "Project"})` : "—"} />
+              <Info label="Client" value={clientName} />
+            </div>
+            <CustomFieldDisplay module="subscriptions" value={sub.custom} />
+          </div>
+
+          {/* Deliverables / Tabbed Section */}
+          <div className="p-8 space-y-5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 text-foreground">
+                <div className="p-1.5 bg-primary rounded-lg">
+                  <svg className="w-4 h-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                 </div>
-              )}
-              {editable && (
-                <div className="flex gap-2 pt-2 border-t">
-                  <Input placeholder="Add custom milestone" value={customLabel} onChange={(e) => setCustomLabel(e.target.value)} />
-                  <Button onClick={addCustom} disabled={!customLabel.trim()}>Add</Button>
+                <h3 className="text-xs font-bold uppercase tracking-[0.1em]">Deliverables, Costs & To-dos</h3>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div className="bg-emerald-500 h-full transition-all" style={{ width: `${progress}%` }} />
                 </div>
-              )}
-            </TabsContent>
-            <TabsContent value="todos" className="mt-4">
-              <TodoList parentType="subscription" parentId={sub.id} editable={editable} />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                <span className="text-[10px] font-bold text-muted-foreground">{done}/{milestones.length} · {progress}%</span>
+              </div>
+            </div>
+
+            <Tabs defaultValue="milestones">
+              <TabsList>
+                <TabsTrigger value="milestones">Milestones</TabsTrigger>
+                <TabsTrigger value="costs">Cost Breakdown</TabsTrigger>
+                <TabsTrigger value="todos">To-dos</TabsTrigger>
+              </TabsList>
+              <TabsContent value="milestones" className="mt-4 space-y-4">
+                {milestones.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No milestones yet.</p>
+                ) : (
+                  <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
+                    {milestones.map((m) => (
+                      <div key={m.id} className="grid grid-cols-[auto,1fr,auto,auto] items-center gap-4 px-5 py-4 hover:bg-muted/40 transition-colors">
+                        <Checkbox
+                          checked={!!m.completed_at}
+                          onCheckedChange={(c) => editable && toggleCompleted(m, c === true)}
+                          disabled={!editable}
+                        />
+                        <span className={`text-sm font-medium ${m.completed_at ? "line-through text-muted-foreground" : "text-foreground"}`}>{m.label}</span>
+                        <Input
+                          type="date"
+                          value={m.due_date ?? ""}
+                          disabled={!editable}
+                          onChange={(e) => updateDueDate(m, e.target.value || null)}
+                          className="h-8 text-xs w-40"
+                        />
+                        <div className="w-28 text-right flex items-center justify-end gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground italic">
+                            {m.completed_at ? formatDateUK(m.completed_at) : "Pending"}
+                          </span>
+                          {editable && m.is_custom && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Delete custom milestone" onClick={() => removeMilestone(m)}><Trash2 className="size-3.5" /></Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {editable && (
+                  <div className="flex gap-2 pt-2">
+                    <Input placeholder="Add custom milestone…" value={customLabel} onChange={(e) => setCustomLabel(e.target.value)} />
+                    <Button onClick={addCustom} disabled={!customLabel.trim()}>Add</Button>
+                  </div>
+                )}
+              </TabsContent>
+              <TabsContent value="costs" className="mt-4">
+                <CostBreakdown
+                  parentType="subscription"
+                  parentId={sub.id}
+                  editable={editable}
+                  onTotalsChange={async ({ final }) => {
+                    if (Number(sub.cost) === final) return;
+                    await supabase.from("subscriptions").update({ cost: final }).eq("id", sub.id);
+                    void load();
+                  }}
+                />
+              </TabsContent>
+              <TabsContent value="todos" className="mt-4">
+                <TodoList parentType="subscription" parentId={sub.id} editable={editable} />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+      </div>
 
       <SubDialog open={openEdit} onOpenChange={setOpenEdit} sub={sub} orgs={orgs} contacts={contacts} planOpts={planOpts} projects={projects} onSaved={load} />
     </div>
   );
 }
+
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
