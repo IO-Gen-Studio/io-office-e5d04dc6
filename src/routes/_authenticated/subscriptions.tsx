@@ -335,6 +335,7 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
           }}
         ><FileDown className="size-4 mr-2" />Export PDF</Button>
         {editable && <Button variant="outline" onClick={() => setOpenEdit(true)}><Pencil className="size-4 mr-2" />Edit</Button>}
+        {onShowList && <Button variant="outline" onClick={onShowList}><ListIcon className="size-4 mr-2" />List view</Button>}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
