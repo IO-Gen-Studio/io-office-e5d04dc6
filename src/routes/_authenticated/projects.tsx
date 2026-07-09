@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/DataTable";
-import { Plus, Pencil, Trash2, ArrowLeft, FolderOpen, FileDown, List as ListIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, FolderOpen, FileDown, List as ListIcon } from "lucide-react";
 import { generateCostProposalPdf, fetchCostItems } from "@/lib/cost-proposal-pdf";
 
 import { toast } from "sonner";
@@ -397,7 +397,6 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="size-4 mr-1" />Back to list</Button>
         <div className="flex-1" />
         <Button
           variant="outline"

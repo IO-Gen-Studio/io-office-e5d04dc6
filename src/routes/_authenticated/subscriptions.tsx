@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DataTable, type DataTableColumn } from "@/components/DataTable";
-import { Plus, Pencil, Trash2, ArrowLeft, FolderOpen, ChevronDown, FileDown, List as ListIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, FolderOpen, ChevronDown, FileDown, List as ListIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { generateCostProposalPdf, fetchCostItems } from "@/lib/cost-proposal-pdf";
 import { toast } from "sonner";
@@ -210,6 +210,8 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
   const [siblings, setSiblings] = useState<Sub[]>([]);
   const [openEdit, setOpenEdit] = useState(false);
   const [customLabel, setCustomLabel] = useState("");
+  const [siblingTab, setSiblingTab] = useState<"active" | "pending">(sub.status === "active" ? "active" : "pending");
+  useEffect(() => { setSiblingTab(sub.status === "active" ? "active" : "pending"); }, [sub.status]);
   const seededRef = useRef<Set<string>>(new Set());
 
   const cycleLabel = useBuiltinFieldLabel("subscriptions", "billing_cycle");
@@ -302,7 +304,6 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="size-4 mr-1" />Back to list</Button>
         <div className="flex-1" />
         <Button
           variant="outline"
@@ -341,10 +342,20 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         {/* Left: Portfolio Rail */}
         <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto pr-1">
-          <h3 className="px-1 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Subscriptions</h3>
+          <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
+            <button
+              onClick={() => setSiblingTab("active")}
+              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${siblingTab === "active" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+            >Active</button>
+            <button
+              onClick={() => setSiblingTab("pending")}
+              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${siblingTab === "pending" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+            >Pending</button>
+          </div>
           {(() => {
+            const filtered = siblings.filter((s) => siblingTab === "active" ? s.status === "active" : s.status !== "active");
             const rank = (s: Sub) => s.status === "active" ? 0 : s.status === "pending_renewal" ? 1 : 2;
-            const sorted = [...siblings].sort((a, b) => rank(a) - rank(b));
+            const sorted = [...filtered].sort((a, b) => rank(a) - rank(b));
             return sorted.map((s) => {
             const isActive = s.id === sub.id;
             const sClient = orgs.find((o) => o.id === s.client_org_id)?.name ?? "—";
