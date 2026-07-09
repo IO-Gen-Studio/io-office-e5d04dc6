@@ -379,7 +379,8 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
                 </div>
               </button>
             );
-          })}
+          });
+          })()}
         </aside>
 
         {/* Right: Main Detail Panel */}
