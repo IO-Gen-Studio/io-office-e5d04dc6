@@ -386,7 +386,6 @@ function CampaignWorkspace({
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div className="space-y-2 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-2.5 py-1 bg-muted text-foreground text-[10px] font-bold rounded-lg uppercase tracking-wider">Campaign Engine</span>
             {editable ? (
               <Select value={campaign.status} onValueChange={(v) => onStatusChange(v as CampaignStatus)}>
                 <SelectTrigger className={`h-7 w-auto gap-2 text-[10px] font-bold uppercase tracking-wider border ${statusBadgeClass(campaign.status)}`}>
