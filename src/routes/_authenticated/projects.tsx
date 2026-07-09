@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/DataTable";
-import { Plus, Pencil, Trash2, ArrowLeft, FolderOpen, FileDown } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, FolderOpen, FileDown, List as ListIcon } from "lucide-react";
 import { generateCostProposalPdf, fetchCostItems } from "@/lib/cost-proposal-pdf";
 
 import { toast } from "sonner";
@@ -80,6 +80,24 @@ function ProjectsPage() {
   const { canEdit } = useAuth();
   const editable = canEdit("projects");
   const [active, setActive] = useState<Project | null>(null);
+  const [showList, setShowList] = useState(false);
+  const [bootstrapped, setBootstrapped] = useState(false);
+
+  useEffect(() => {
+    if (bootstrapped) return;
+    (async () => {
+      const { data } = await supabase
+        .from("projects")
+        .select("*")
+        .order("created_at", { ascending: false });
+      const rows = (data ?? []) as Project[];
+      const first = rows.find((r) => r.status === "in_progress") ?? rows[0] ?? null;
+      setActive(first);
+      if (!first) setShowList(true);
+      setBootstrapped(true);
+    })();
+  }, [bootstrapped]);
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-baseline justify-between">
@@ -88,7 +106,9 @@ function ProjectsPage() {
           <p className="text-muted-foreground mt-1">Track delivery, costs and milestones.</p>
         </div>
       </div>
-      {active ? <ProjectDetail project={active} editable={editable} onBack={() => setActive(null)} onSaved={(p) => setActive(p)} /> : <ProjectList editable={editable} onOpen={setActive} />}
+      {!showList && active
+        ? <ProjectDetail project={active} editable={editable} onBack={() => setShowList(true)} onSaved={(p) => setActive(p)} onShowList={() => setShowList(true)} />
+        : <ProjectList editable={editable} onOpen={(p) => { setActive(p); setShowList(false); }} />}
     </div>
   );
 }
@@ -278,7 +298,7 @@ function ProjectList({ editable, onOpen }: { editable: boolean; onOpen: (p: Proj
   );
 }
 
-function ProjectDetail({ project, editable, onBack, onSaved }: { project: Project; editable: boolean; onBack: () => void; onSaved: (p: Project) => void }) {
+function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { project: Project; editable: boolean; onBack: () => void; onSaved: (p: Project) => void; onShowList?: () => void }) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -288,6 +308,8 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
   const [siblingMs, setSiblingMs] = useState<Record<string, { completed_at: string | null }[]>>({});
   const [openEdit, setOpenEdit] = useState(false);
   const [customLabel, setCustomLabel] = useState("");
+  const [siblingTab, setSiblingTab] = useState<PType>(project.type);
+  useEffect(() => { setSiblingTab(project.type); }, [project.type]);
 
   const load = async () => {
     const [{ data: m }, { data: o }, { data: pr }, { data: c }, { data: fresh }, { data: subs }, { data: sibs }, { data: allMs }] = await Promise.all([
@@ -297,7 +319,7 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
       supabase.from("contacts").select("id,first_name,last_name,organisation_id").order("last_name"),
       supabase.from("projects").select("*").eq("id", project.id).single(),
       supabase.from("subscriptions").select("id,plan_name,billing_cycle,cost,renewal_date,status").eq("project_id", project.id).order("plan_name"),
-      supabase.from("projects").select("*").eq("type", project.type).order("created_at", { ascending: false }),
+      supabase.from("projects").select("*").order("created_at", { ascending: false }),
       supabase.from("milestones").select("parent_id,completed_at").eq("parent_type", "project"),
     ]);
     setMilestones((m ?? []) as Milestone[]);
@@ -415,15 +437,27 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
           }}
         ><FileDown className="size-4 mr-2" />Export PDF</Button>
         {editable && <Button variant="outline" onClick={() => setOpenEdit(true)}><Pencil className="size-4 mr-2" />Edit</Button>}
+        {onShowList && <Button variant="outline" onClick={onShowList}><ListIcon className="size-4 mr-2" />List view</Button>}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         {/* Left: Portfolio Rail */}
         <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto pr-1">
-          <h3 className="px-1 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
-            {project.type === "work" ? "Works Portfolio" : "Project Portfolio"}
-          </h3>
-          {siblings.map((s) => {
+          <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
+            <button
+              onClick={() => setSiblingTab("project")}
+              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${siblingTab === "project" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+            >Projects</button>
+            <button
+              onClick={() => setSiblingTab("work")}
+              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${siblingTab === "work" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+            >Works</button>
+          </div>
+          {(() => {
+            const filtered = siblings.filter((s) => s.type === siblingTab);
+            const rank = (s: Project) => s.status === "in_progress" ? 0 : s.status === "completed" ? 2 : 1;
+            const sorted = [...filtered].sort((a, b) => rank(a) - rank(b));
+            return sorted.map((s) => {
             const isActive = s.id === project.id;
             const sms = siblingMs[s.id] ?? [];
             const sDone = sms.filter((x) => x.completed_at).length;
@@ -435,7 +469,7 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
                 className={
                   isActive
                     ? "w-full text-left p-5 rounded-3xl bg-primary text-primary-foreground shadow-xl relative overflow-hidden"
-                    : "w-full text-left p-5 rounded-2xl bg-card border border-border hover:border-foreground/20 transition-colors"
+                    : `w-full text-left p-5 rounded-2xl border transition-colors ${s.status === "in_progress" ? "bg-sky-50 border-sky-200 hover:border-sky-400 dark:bg-sky-950/30 dark:border-sky-900" : s.status === "completed" ? "bg-emerald-50 border-emerald-200 hover:border-emerald-400 dark:bg-emerald-950/30 dark:border-emerald-900" : "bg-card border-border hover:border-foreground/20"}`
                 }
               >
                 {isActive && <div className="absolute -top-8 -right-8 w-32 h-32 bg-primary-foreground/5 rounded-full blur-2xl" />}
@@ -462,7 +496,8 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
                 </div>
               </button>
             );
-          })}
+          });
+          })()}
         </aside>
 
         {/* Right: Main Detail Panel */}
@@ -575,13 +610,13 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
                 ) : (
                   <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
                     {milestones.map((m) => (
-                      <div key={m.id} className="grid grid-cols-[auto,1fr,auto,auto] items-center gap-4 px-5 py-4 hover:bg-muted/40 transition-colors">
+                      <div key={m.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors">
                         <Checkbox
                           checked={!!m.completed_at}
                           onCheckedChange={(c) => editable && toggleCompleted(m, c === true)}
                           disabled={!editable}
                         />
-                        <span className={`text-sm font-medium ${m.completed_at ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                        <span className={`flex-1 min-w-0 truncate text-sm font-medium ${m.completed_at ? "line-through text-muted-foreground" : "text-foreground"}`}>
                           {relabelForType(m.label, project.type)}
                         </span>
                         <Input
@@ -589,16 +624,14 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
                           value={m.due_date ?? ""}
                           disabled={!editable}
                           onChange={(e) => updateDueDate(m, e.target.value || null)}
-                          className="h-8 text-xs w-40"
+                          className="h-7 text-xs w-36 shrink-0"
                         />
-                        <div className="w-28 text-right flex items-center justify-end gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground italic">
-                            {m.completed_at ? formatDateUK(m.completed_at) : "Pending"}
-                          </span>
-                          {editable && m.is_custom && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Delete custom milestone" onClick={() => removeMilestone(m)}><Trash2 className="size-3.5" /></Button>
-                          )}
-                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground italic w-24 text-right shrink-0">
+                          {m.completed_at ? formatDateUK(m.completed_at) : "Pending"}
+                        </span>
+                        {editable && m.is_custom ? (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Delete custom milestone" onClick={() => removeMilestone(m)}><Trash2 className="size-3.5" /></Button>
+                        ) : <span className="w-7 shrink-0" />}
                       </div>
                     ))}
                   </div>

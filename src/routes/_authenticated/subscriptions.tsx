@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DataTable, type DataTableColumn } from "@/components/DataTable";
-import { Plus, Pencil, Trash2, ArrowLeft, FolderOpen, ChevronDown, FileDown } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, FolderOpen, ChevronDown, FileDown, List as ListIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { generateCostProposalPdf, fetchCostItems } from "@/lib/cost-proposal-pdf";
 import { toast } from "sonner";
@@ -49,6 +49,24 @@ function SubscriptionsPage() {
   const { canEdit } = useAuth();
   const editable = canEdit("subscriptions");
   const [active, setActive] = useState<Sub | null>(null);
+  const [showList, setShowList] = useState(false);
+  const [bootstrapped, setBootstrapped] = useState(false);
+
+  useEffect(() => {
+    if (bootstrapped) return;
+    (async () => {
+      const { data } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .order("renewal_date", { ascending: true, nullsFirst: false });
+      const rows = (data ?? []) as Sub[];
+      const first = rows.find((r) => r.status === "active") ?? rows[0] ?? null;
+      setActive(first);
+      if (!first) setShowList(true);
+      setBootstrapped(true);
+    })();
+  }, [bootstrapped]);
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-baseline justify-between">
@@ -57,9 +75,9 @@ function SubscriptionsPage() {
           <p className="text-muted-foreground mt-1">Recurring client plans and renewals.</p>
         </div>
       </div>
-      {active
-        ? <SubDetail sub={active} editable={editable} onBack={() => setActive(null)} onSaved={(s) => setActive(s)} />
-        : <SubList editable={editable} onOpen={setActive} />}
+      {!showList && active
+        ? <SubDetail sub={active} editable={editable} onBack={() => setShowList(true)} onSaved={(s) => setActive(s)} onShowList={() => setShowList(true)} />
+        : <SubList editable={editable} onOpen={(s) => { setActive(s); setShowList(false); }} />}
     </div>
   );
 }
@@ -183,7 +201,7 @@ function SubList({ editable, onOpen }: { editable: boolean; onOpen: (s: Sub) => 
   );
 }
 
-function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boolean; onBack: () => void; onSaved: (s: Sub) => void }) {
+function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; editable: boolean; onBack: () => void; onSaved: (s: Sub) => void; onShowList?: () => void }) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -317,13 +335,17 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
           }}
         ><FileDown className="size-4 mr-2" />Export PDF</Button>
         {editable && <Button variant="outline" onClick={() => setOpenEdit(true)}><Pencil className="size-4 mr-2" />Edit</Button>}
+        {onShowList && <Button variant="outline" onClick={onShowList}><ListIcon className="size-4 mr-2" />List view</Button>}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         {/* Left: Portfolio Rail */}
         <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto pr-1">
           <h3 className="px-1 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Subscriptions</h3>
-          {siblings.map((s) => {
+          {(() => {
+            const rank = (s: Sub) => s.status === "active" ? 0 : s.status === "pending_renewal" ? 1 : 2;
+            const sorted = [...siblings].sort((a, b) => rank(a) - rank(b));
+            return sorted.map((s) => {
             const isActive = s.id === sub.id;
             const sClient = orgs.find((o) => o.id === s.client_org_id)?.name ?? "—";
             return (
@@ -357,7 +379,8 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
                 </div>
               </button>
             );
-          })}
+          });
+          })()}
         </aside>
 
         {/* Right: Main Detail Panel */}
@@ -459,28 +482,26 @@ function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boo
                 ) : (
                   <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
                     {milestones.map((m) => (
-                      <div key={m.id} className="grid grid-cols-[auto,1fr,auto,auto] items-center gap-4 px-5 py-4 hover:bg-muted/40 transition-colors">
+                      <div key={m.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors">
                         <Checkbox
                           checked={!!m.completed_at}
                           onCheckedChange={(c) => editable && toggleCompleted(m, c === true)}
                           disabled={!editable}
                         />
-                        <span className={`text-sm font-medium ${m.completed_at ? "line-through text-muted-foreground" : "text-foreground"}`}>{m.label}</span>
+                        <span className={`flex-1 min-w-0 truncate text-sm font-medium ${m.completed_at ? "line-through text-muted-foreground" : "text-foreground"}`}>{m.label}</span>
                         <Input
                           type="date"
                           value={m.due_date ?? ""}
                           disabled={!editable}
                           onChange={(e) => updateDueDate(m, e.target.value || null)}
-                          className="h-8 text-xs w-40"
+                          className="h-7 text-xs w-36 shrink-0"
                         />
-                        <div className="w-28 text-right flex items-center justify-end gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground italic">
-                            {m.completed_at ? formatDateUK(m.completed_at) : "Pending"}
-                          </span>
-                          {editable && m.is_custom && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Delete custom milestone" onClick={() => removeMilestone(m)}><Trash2 className="size-3.5" /></Button>
-                          )}
-                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground italic w-24 text-right shrink-0">
+                          {m.completed_at ? formatDateUK(m.completed_at) : "Pending"}
+                        </span>
+                        {editable && m.is_custom ? (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Delete custom milestone" onClick={() => removeMilestone(m)}><Trash2 className="size-3.5" /></Button>
+                        ) : <span className="w-7 shrink-0" />}
                       </div>
                     ))}
                   </div>
