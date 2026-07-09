@@ -599,7 +599,7 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
 
             <Tabs defaultValue="milestones">
               <TabsList>
-                <TabsTrigger value="milestones">Milestones</TabsTrigger>
+                <TabsTrigger value="milestones">Deliverables</TabsTrigger>
                 <TabsTrigger value="costs">Cost Breakdown</TabsTrigger>
                 <TabsTrigger value="todos">To-dos</TabsTrigger>
               </TabsList>
