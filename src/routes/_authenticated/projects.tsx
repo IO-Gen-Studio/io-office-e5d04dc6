@@ -80,6 +80,24 @@ function ProjectsPage() {
   const { canEdit } = useAuth();
   const editable = canEdit("projects");
   const [active, setActive] = useState<Project | null>(null);
+  const [showList, setShowList] = useState(false);
+  const [bootstrapped, setBootstrapped] = useState(false);
+
+  useEffect(() => {
+    if (bootstrapped) return;
+    (async () => {
+      const { data } = await supabase
+        .from("projects")
+        .select("*")
+        .order("created_at", { ascending: false });
+      const rows = (data ?? []) as Project[];
+      const first = rows.find((r) => r.status === "in_progress") ?? rows[0] ?? null;
+      setActive(first);
+      if (!first) setShowList(true);
+      setBootstrapped(true);
+    })();
+  }, [bootstrapped]);
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-baseline justify-between">
@@ -88,7 +106,9 @@ function ProjectsPage() {
           <p className="text-muted-foreground mt-1">Track delivery, costs and milestones.</p>
         </div>
       </div>
-      {active ? <ProjectDetail project={active} editable={editable} onBack={() => setActive(null)} onSaved={(p) => setActive(p)} /> : <ProjectList editable={editable} onOpen={setActive} />}
+      {!showList && active
+        ? <ProjectDetail project={active} editable={editable} onBack={() => setShowList(true)} onSaved={(p) => setActive(p)} onShowList={() => setShowList(true)} />
+        : <ProjectList editable={editable} onOpen={(p) => { setActive(p); setShowList(false); }} />}
     </div>
   );
 }
