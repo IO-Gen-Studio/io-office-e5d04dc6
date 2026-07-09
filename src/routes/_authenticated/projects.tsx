@@ -403,54 +403,12 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
         </CardContent>
       </Card>
 
-      <Collapsible defaultOpen>
-        <Card className="shadow-soft">
-          <CardContent className="pt-6 space-y-4">
-            <CollapsibleTrigger asChild>
-              <Button type="button" variant="ghost" className="group h-auto min-h-11 w-full justify-between px-0 text-left hover:bg-transparent">
-                <h3 className="font-semibold">Cost Breakdown</h3>
-                <ChevronDown className="size-4 transition-transform group-data-[state=closed]:-rotate-90" />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4">
-              <CostBreakdown
-                parentType="project"
-                parentId={project.id}
-                editable={editable}
-                onTotalsChange={async ({ final, supplier }) => {
-                  if (Number(project.total_cost) === final && Number(project.supplier_cost) === supplier) return;
-                  await supabase.from("projects").update({ total_cost: final, supplier_cost: supplier }).eq("id", project.id);
-                  void load();
-                }}
-              />
-              {linkedSubs.length > 0 && (
-                <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Linked subscription{linkedSubs.length > 1 ? "s" : ""}</p>
-                    <span className="text-xs text-muted-foreground">Reference only — not included in project totals</span>
-                  </div>
-                  <ul className="text-sm space-y-1">
-                    {linkedSubs.map((s) => (
-                      <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <span className="font-medium">{s.plan_name}</span>
-                        <span className="text-muted-foreground">{s.billing_cycle}</span>
-                        <span>{formatGBP(s.cost)}</span>
-                        {s.renewal_date && <span className="text-muted-foreground">renews {formatDateUK(s.renewal_date)}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </CollapsibleContent>
-          </CardContent>
-        </Card>
-      </Collapsible>
-
       <Card className="shadow-soft">
         <CardContent className="pt-6">
           <Tabs defaultValue="milestones">
             <TabsList>
               <TabsTrigger value="milestones">Milestones</TabsTrigger>
+              <TabsTrigger value="costs">Cost Breakdown</TabsTrigger>
               <TabsTrigger value="todos">To-dos</TabsTrigger>
             </TabsList>
             <TabsContent value="milestones" className="mt-4 space-y-4">
@@ -505,12 +463,43 @@ function ProjectDetail({ project, editable, onBack, onSaved }: { project: Projec
                 </div>
               )}
             </TabsContent>
+            <TabsContent value="costs" className="mt-4 space-y-4">
+              <CostBreakdown
+                parentType="project"
+                parentId={project.id}
+                editable={editable}
+                onTotalsChange={async ({ final, supplier }) => {
+                  if (Number(project.total_cost) === final && Number(project.supplier_cost) === supplier) return;
+                  await supabase.from("projects").update({ total_cost: final, supplier_cost: supplier }).eq("id", project.id);
+                  void load();
+                }}
+              />
+              {linkedSubs.length > 0 && (
+                <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">Linked subscription{linkedSubs.length > 1 ? "s" : ""}</p>
+                    <span className="text-xs text-muted-foreground">Reference only — not included in project totals</span>
+                  </div>
+                  <ul className="text-sm space-y-1">
+                    {linkedSubs.map((s) => (
+                      <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="font-medium">{s.plan_name}</span>
+                        <span className="text-muted-foreground">{s.billing_cycle}</span>
+                        <span>{formatGBP(s.cost)}</span>
+                        {s.renewal_date && <span className="text-muted-foreground">renews {formatDateUK(s.renewal_date)}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </TabsContent>
             <TabsContent value="todos" className="mt-4">
               <TodoList parentType="project" parentId={project.id} editable={editable} />
             </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
+
 
       <ProjectDialog open={openEdit} onOpenChange={setOpenEdit} project={project} defaultType={project.type} orgs={orgs} contacts={contacts} profiles={profiles} onSaved={load} />
     </div>
