@@ -201,7 +201,7 @@ function SubList({ editable, onOpen }: { editable: boolean; onOpen: (s: Sub) => 
   );
 }
 
-function SubDetail({ sub, editable, onBack, onSaved }: { sub: Sub; editable: boolean; onBack: () => void; onSaved: (s: Sub) => void }) {
+function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; editable: boolean; onBack: () => void; onSaved: (s: Sub) => void; onShowList?: () => void }) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
