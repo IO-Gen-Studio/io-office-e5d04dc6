@@ -483,7 +483,7 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
 
             <Tabs defaultValue="milestones">
               <TabsList>
-                <TabsTrigger value="milestones">Milestones</TabsTrigger>
+                <TabsTrigger value="milestones">Deliverables</TabsTrigger>
                 <TabsTrigger value="costs">Cost Breakdown</TabsTrigger>
                 <TabsTrigger value="todos">To-dos</TabsTrigger>
               </TabsList>
