@@ -49,6 +49,24 @@ function SubscriptionsPage() {
   const { canEdit } = useAuth();
   const editable = canEdit("subscriptions");
   const [active, setActive] = useState<Sub | null>(null);
+  const [showList, setShowList] = useState(false);
+  const [bootstrapped, setBootstrapped] = useState(false);
+
+  useEffect(() => {
+    if (bootstrapped) return;
+    (async () => {
+      const { data } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .order("renewal_date", { ascending: true, nullsFirst: false });
+      const rows = (data ?? []) as Sub[];
+      const first = rows.find((r) => r.status === "active") ?? rows[0] ?? null;
+      setActive(first);
+      if (!first) setShowList(true);
+      setBootstrapped(true);
+    })();
+  }, [bootstrapped]);
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-baseline justify-between">
@@ -57,9 +75,9 @@ function SubscriptionsPage() {
           <p className="text-muted-foreground mt-1">Recurring client plans and renewals.</p>
         </div>
       </div>
-      {active
-        ? <SubDetail sub={active} editable={editable} onBack={() => setActive(null)} onSaved={(s) => setActive(s)} />
-        : <SubList editable={editable} onOpen={setActive} />}
+      {!showList && active
+        ? <SubDetail sub={active} editable={editable} onBack={() => setShowList(true)} onSaved={(s) => setActive(s)} onShowList={() => setShowList(true)} />
+        : <SubList editable={editable} onOpen={(s) => { setActive(s); setShowList(false); }} />}
     </div>
   );
 }
