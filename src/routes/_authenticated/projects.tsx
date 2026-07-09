@@ -610,13 +610,13 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
                 ) : (
                   <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
                     {milestones.map((m) => (
-                      <div key={m.id} className="grid grid-cols-[auto,1fr,auto,auto] items-center gap-4 px-5 py-4 hover:bg-muted/40 transition-colors">
+                      <div key={m.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors">
                         <Checkbox
                           checked={!!m.completed_at}
                           onCheckedChange={(c) => editable && toggleCompleted(m, c === true)}
                           disabled={!editable}
                         />
-                        <span className={`text-sm font-medium ${m.completed_at ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                        <span className={`flex-1 min-w-0 truncate text-sm font-medium ${m.completed_at ? "line-through text-muted-foreground" : "text-foreground"}`}>
                           {relabelForType(m.label, project.type)}
                         </span>
                         <Input
@@ -624,16 +624,14 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
                           value={m.due_date ?? ""}
                           disabled={!editable}
                           onChange={(e) => updateDueDate(m, e.target.value || null)}
-                          className="h-8 text-xs w-40"
+                          className="h-7 text-xs w-36 shrink-0"
                         />
-                        <div className="w-28 text-right flex items-center justify-end gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground italic">
-                            {m.completed_at ? formatDateUK(m.completed_at) : "Pending"}
-                          </span>
-                          {editable && m.is_custom && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Delete custom milestone" onClick={() => removeMilestone(m)}><Trash2 className="size-3.5" /></Button>
-                          )}
-                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground italic w-24 text-right shrink-0">
+                          {m.completed_at ? formatDateUK(m.completed_at) : "Pending"}
+                        </span>
+                        {editable && m.is_custom ? (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Delete custom milestone" onClick={() => removeMilestone(m)}><Trash2 className="size-3.5" /></Button>
+                        ) : <span className="w-7 shrink-0" />}
                       </div>
                     ))}
                   </div>
