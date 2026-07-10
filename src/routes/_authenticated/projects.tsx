@@ -477,8 +477,8 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
                           : "hover:bg-muted/60"
                   }`}
                 >
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="font-semibold text-sm truncate">{s.title}</span>
+                  <div className="flex justify-between items-start gap-2 min-w-0">
+                    <span className="font-semibold text-sm truncate min-w-0 flex-1">{s.title}</span>
                     <span className={`px-2 py-0.5 text-[9px] rounded-full uppercase font-bold tracking-wider shrink-0 border ${
                       isActive ? "bg-white/15 text-primary-foreground border-white/20" : "bg-muted text-muted-foreground border-transparent"
                     }`}>
