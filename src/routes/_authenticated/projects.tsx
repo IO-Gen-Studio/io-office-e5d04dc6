@@ -610,6 +610,8 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
                 <TabsTrigger value="milestones">Deliverables</TabsTrigger>
                 <TabsTrigger value="costs">Cost Breakdown</TabsTrigger>
                 <TabsTrigger value="todos">To-dos</TabsTrigger>
+                <TabsTrigger value="info">Other Information</TabsTrigger>
+              </TabsList>
               </TabsList>
               <TabsContent value="milestones" className="mt-4 space-y-4">
                 {milestones.length === 0 ? (
