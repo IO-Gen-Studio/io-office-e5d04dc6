@@ -99,12 +99,10 @@ function ProjectsPage() {
   }, [bootstrapped]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-baseline justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Projects &amp; Works</h1>
-          <p className="text-muted-foreground mt-1">Track delivery, costs and milestones.</p>
-        </div>
+    <div className="py-6 space-y-4">
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">Projects &amp; Works</h1>
+        <p className="text-muted-foreground mt-1 text-sm">Track delivery, costs and milestones.</p>
       </div>
       {!showList && active
         ? <ProjectDetail project={active} editable={editable} onBack={() => setShowList(true)} onSaved={(p) => setActive(p)} onShowList={() => setShowList(true)} />
@@ -439,65 +437,75 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
         {onShowList && <Button variant="outline" onClick={onShowList}><ListIcon className="size-4 mr-2" />List view</Button>}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Portfolio Rail */}
-        <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto pr-1">
-          <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
-            <button
-              onClick={() => setSiblingTab("project")}
-              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${siblingTab === "project" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
-            >Projects</button>
-            <button
-              onClick={() => setSiblingTab("work")}
-              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${siblingTab === "work" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
-            >Works</button>
-          </div>
-          {(() => {
-            const filtered = siblings.filter((s) => s.type === siblingTab);
-            const rank = (s: Project) => s.status === "in_progress" ? 0 : s.status === "completed" ? 2 : 1;
-            const sorted = [...filtered].sort((a, b) => rank(a) - rank(b));
-            return sorted.map((s) => {
-            const isActive = s.id === project.id;
-            const sms = siblingMs[s.id] ?? [];
-            const sDone = sms.filter((x) => x.completed_at).length;
-            const sProg = sms.length ? Math.round((sDone / sms.length) * 100) : 0;
-            return (
-              <button
-                key={s.id}
-                onClick={() => !isActive && onSaved(s)}
-                className={
-                  isActive
-                    ? "w-full text-left p-5 rounded-3xl bg-primary text-primary-foreground shadow-xl relative overflow-hidden"
-                    : `w-full text-left p-5 rounded-2xl border transition-colors ${s.status === "in_progress" ? "bg-sky-50 border-sky-200 hover:border-sky-400 dark:bg-sky-950/30 dark:border-sky-900" : s.status === "completed" ? "bg-emerald-50 border-emerald-200 hover:border-emerald-400 dark:bg-emerald-950/30 dark:border-emerald-900" : "bg-card border-border hover:border-foreground/20"}`
-                }
-              >
-                {isActive && <div className="absolute -top-8 -right-8 w-32 h-32 bg-primary-foreground/5 rounded-full blur-2xl" />}
-                <div className="relative">
-                  <h4 className={`font-bold text-sm leading-snug line-clamp-2 ${isActive ? "" : "text-foreground"}`}>{s.title}</h4>
-                  <div className="mt-3 flex justify-between items-end">
-                    <span className={`text-sm font-medium ${isActive ? "opacity-90" : "text-muted-foreground"}`}>{formatGBP(s.total_cost)}</span>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? "opacity-60" : "text-muted-foreground"}`}>{sProg}% done</span>
+        <aside className="lg:col-span-3 flex flex-col gap-6">
+          <section className="bg-card rounded-2xl border border-border/60 shadow-soft flex flex-col overflow-hidden lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)]">
+            <div className="p-4 border-b border-border/60 space-y-3">
+              <h2 className="text-[11px] font-bold tracking-widest text-muted-foreground uppercase flex items-center gap-2">
+                <FolderOpen className="size-3.5" /> Portfolio
+              </h2>
+              <Tabs value={siblingTab} onValueChange={(v) => setSiblingTab(v as PType)}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="project" className="flex-1 text-xs">Projects ({siblings.filter((s) => s.type === "project").length})</TabsTrigger>
+                  <TabsTrigger value="work" className="flex-1 text-xs">Works ({siblings.filter((s) => s.type === "work").length})</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {(() => {
+              const filtered = siblings.filter((s) => s.type === siblingTab);
+              const rank = (s: Project) => s.status === "in_progress" ? 0 : s.status === "completed" ? 2 : 1;
+              const sorted = [...filtered].sort((a, b) => rank(a) - rank(b));
+              if (sorted.length === 0) return <p className="text-xs text-muted-foreground text-center py-6">No items.</p>;
+              return sorted.map((s) => {
+              const isActive = s.id === project.id;
+              const sms = siblingMs[s.id] ?? [];
+              const sDone = sms.filter((x) => x.completed_at).length;
+              const sProg = sms.length ? Math.round((sDone / sms.length) * 100) : 0;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => !isActive && onSaved(s)}
+                  className={`w-full text-left p-3 rounded-xl transition-colors ${
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-md"
+                      : s.status === "in_progress"
+                        ? "bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/30 dark:hover:bg-sky-950/50"
+                        : s.status === "completed"
+                          ? "bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50"
+                          : "hover:bg-muted/60"
+                  }`}
+                >
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="font-semibold text-sm truncate">{s.title}</span>
+                    <span className={`px-2 py-0.5 text-[9px] rounded-full uppercase font-bold tracking-wider shrink-0 border ${
+                      isActive ? "bg-white/15 text-primary-foreground border-white/20" : "bg-muted text-muted-foreground border-transparent"
+                    }`}>
+                      {statusLabel(s.status)}
+                    </span>
                   </div>
-                  <div className={`w-full h-1.5 rounded-full mt-2 overflow-hidden ${isActive ? "bg-primary-foreground/10" : "bg-muted"}`}>
+                  <div className={`mt-2 flex justify-between items-center text-[10px] ${isActive ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                    <span>{formatGBP(s.total_cost)}</span>
+                    <span>{sProg}%</span>
+                  </div>
+                  <div className={`w-full h-1 rounded-full mt-1.5 overflow-hidden ${isActive ? "bg-primary-foreground/10" : "bg-muted"}`}>
                     <div
                       className={`h-full transition-all ${isActive ? "bg-primary-foreground" : s.status === "completed" ? "bg-emerald-500" : "bg-primary"}`}
                       style={{ width: `${sProg}%` }}
                     />
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    <span className={`text-[9px] px-2 py-0.5 rounded-md font-semibold uppercase tracking-wider ${isActive ? "bg-primary-foreground/10 border border-primary-foreground/10" : "bg-muted text-muted-foreground"}`}>
-                      {statusLabel(s.status)}
-                    </span>
-                    <span className={`text-[9px] px-2 py-0.5 rounded-md font-semibold uppercase tracking-wider ${isActive ? "bg-primary-foreground/10 border border-primary-foreground/10" : "bg-muted text-muted-foreground"}`}>
-                      {priorityLabel(s.priority)}
-                    </span>
-                  </div>
-                </div>
-              </button>
-            );
-          });
-          })()}
+                </button>
+              );
+            });
+            })()}
+            </div>
+          </section>
         </aside>
+
+        {/* Main: rendered below */}
+        <main className="lg:col-span-9">
+
 
         {/* Right: Main Detail Panel */}
         <div className="bg-card rounded-[2rem] border border-border shadow-sm overflow-hidden">
@@ -577,8 +585,8 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
               <Info label="Dates" value={`${formatDateUK(project.start_date)} → ${formatDateUK(project.end_date)}`} />
               <Info label="Investment" value={formatGBP(project.supplier_cost)} />
             </div>
-            <CustomFieldDisplay module="projects" value={project.custom} />
           </div>
+
 
           {/* Deliverables / Tabbed Section */}
           <div className="p-8 space-y-5">
@@ -602,6 +610,7 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
                 <TabsTrigger value="milestones">Deliverables</TabsTrigger>
                 <TabsTrigger value="costs">Cost Breakdown</TabsTrigger>
                 <TabsTrigger value="todos">To-dos</TabsTrigger>
+                <TabsTrigger value="info">Other Information</TabsTrigger>
               </TabsList>
               <TabsContent value="milestones" className="mt-4 space-y-4">
                 {milestones.length === 0 ? (
@@ -675,10 +684,15 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
               <TabsContent value="todos" className="mt-4">
                 <TodoList parentType="project" parentId={project.id} editable={editable} />
               </TabsContent>
+              <TabsContent value="info" className="mt-4">
+                <CustomFieldDisplay module="projects" value={project.custom} />
+              </TabsContent>
             </Tabs>
           </div>
         </div>
+        </main>
       </div>
+
 
       <ProjectDialog open={openEdit} onOpenChange={setOpenEdit} project={project} defaultType={project.type} orgs={orgs} contacts={contacts} profiles={profiles} onSaved={load} />
     </div>
