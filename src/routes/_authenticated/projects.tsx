@@ -504,7 +504,7 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
         </aside>
 
         {/* Main: rendered below */}
-        <main className="lg:col-span-9">
+        <main className="lg:col-span-9 min-w-0">
 
 
         {/* Right: Main Detail Panel */}
