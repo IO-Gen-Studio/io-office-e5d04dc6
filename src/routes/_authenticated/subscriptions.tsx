@@ -485,6 +485,7 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
                 <TabsTrigger value="milestones">Deliverables</TabsTrigger>
                 <TabsTrigger value="costs">Cost Breakdown</TabsTrigger>
                 <TabsTrigger value="todos">To-dos</TabsTrigger>
+                <TabsTrigger value="info">Other Information</TabsTrigger>
               </TabsList>
               <TabsContent value="milestones" className="mt-4 space-y-4">
                 {milestones.length === 0 ? (
@@ -538,10 +539,15 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
               <TabsContent value="todos" className="mt-4">
                 <TodoList parentType="subscription" parentId={sub.id} editable={editable} />
               </TabsContent>
+              <TabsContent value="info" className="mt-4">
+                <CustomFieldDisplay module="subscriptions" value={sub.custom} />
+              </TabsContent>
             </Tabs>
           </div>
         </div>
+        </main>
       </div>
+
 
       <SubDialog open={openEdit} onOpenChange={setOpenEdit} sub={sub} orgs={orgs} contacts={contacts} planOpts={planOpts} projects={projects} onSaved={load} />
     </div>
