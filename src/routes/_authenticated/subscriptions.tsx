@@ -460,8 +460,8 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
               <Info label="Linked project / work" value={linkedProject ? `${linkedProject.title} (${linkedProject.type === "work" ? "Work" : "Project"})` : "—"} />
               <Info label="Client" value={clientName} />
             </div>
-            <CustomFieldDisplay module="subscriptions" value={sub.custom} />
           </div>
+
 
           {/* Deliverables / Tabbed Section */}
           <div className="p-8 space-y-5">
