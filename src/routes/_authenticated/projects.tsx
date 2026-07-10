@@ -685,10 +685,15 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
               <TabsContent value="todos" className="mt-4">
                 <TodoList parentType="project" parentId={project.id} editable={editable} />
               </TabsContent>
+              <TabsContent value="info" className="mt-4">
+                <CustomFieldDisplay module="projects" value={project.custom} />
+              </TabsContent>
             </Tabs>
           </div>
         </div>
+        </main>
       </div>
+
 
       <ProjectDialog open={openEdit} onOpenChange={setOpenEdit} project={project} defaultType={project.type} orgs={orgs} contacts={contacts} profiles={profiles} onSaved={load} />
     </div>
