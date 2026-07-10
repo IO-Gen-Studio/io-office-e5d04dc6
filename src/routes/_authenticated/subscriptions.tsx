@@ -68,12 +68,10 @@ function SubscriptionsPage() {
   }, [bootstrapped]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-baseline justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Subscriptions</h1>
-          <p className="text-muted-foreground mt-1">Recurring client plans and renewals.</p>
-        </div>
+    <div className="py-6 space-y-4">
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">Subscriptions</h1>
+        <p className="text-muted-foreground mt-1 text-sm">Recurring client plans and renewals.</p>
       </div>
       {!showList && active
         ? <SubDetail sub={active} editable={editable} onBack={() => setShowList(true)} onSaved={(s) => setActive(s)} onShowList={() => setShowList(true)} />
