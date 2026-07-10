@@ -369,8 +369,8 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
                     isActive ? "bg-primary text-primary-foreground shadow-md" : "hover:bg-muted/60"
                   }`}
                 >
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="font-semibold text-sm truncate">{s.plan_name}</span>
+                  <div className="flex justify-between items-start gap-2 min-w-0">
+                    <span className="font-semibold text-sm truncate min-w-0 flex-1">{s.plan_name}</span>
                     <span className={`px-2 py-0.5 text-[9px] rounded-full uppercase font-bold tracking-wider shrink-0 border ${
                       isActive ? "bg-white/15 text-primary-foreground border-white/20" : "bg-muted text-muted-foreground border-transparent"
                     }`}>
