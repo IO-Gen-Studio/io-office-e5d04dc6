@@ -99,12 +99,10 @@ function ProjectsPage() {
   }, [bootstrapped]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-baseline justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Projects &amp; Works</h1>
-          <p className="text-muted-foreground mt-1">Track delivery, costs and milestones.</p>
-        </div>
+    <div className="py-6 space-y-4">
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">Projects &amp; Works</h1>
+        <p className="text-muted-foreground mt-1 text-sm">Track delivery, costs and milestones.</p>
       </div>
       {!showList && active
         ? <ProjectDetail project={active} editable={editable} onBack={() => setShowList(true)} onSaved={(p) => setActive(p)} onShowList={() => setShowList(true)} />
