@@ -339,8 +339,8 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Portfolio Rail */}
-        <aside className="lg:col-span-3 min-w-0 flex flex-col gap-6">
-          <section className="bg-card rounded-2xl border border-border/60 shadow-soft flex flex-col overflow-hidden lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)]">
+        <aside className="lg:col-span-3 min-w-0 flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start">
+          <section className="bg-card rounded-2xl border border-border/60 shadow-soft flex flex-col overflow-hidden lg:max-h-[calc(100vh-6rem)]">
             <div className="p-4 border-b border-border/60 space-y-3">
               <h2 className="text-[11px] font-bold tracking-widest text-muted-foreground uppercase flex items-center gap-2">
                 <FolderOpen className="size-3.5" /> Subscriptions
