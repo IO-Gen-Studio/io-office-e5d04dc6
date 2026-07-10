@@ -390,7 +390,7 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
           </section>
         </aside>
 
-        <main className="lg:col-span-9">
+        <main className="lg:col-span-9 min-w-0">
 
 
         {/* Right: Main Detail Panel */}
