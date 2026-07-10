@@ -585,8 +585,8 @@ function ProjectDetail({ project, editable, onBack, onSaved, onShowList }: { pro
               <Info label="Dates" value={`${formatDateUK(project.start_date)} → ${formatDateUK(project.end_date)}`} />
               <Info label="Investment" value={formatGBP(project.supplier_cost)} />
             </div>
-            <CustomFieldDisplay module="projects" value={project.custom} />
           </div>
+
 
           {/* Deliverables / Tabbed Section */}
           <div className="p-8 space-y-5">
