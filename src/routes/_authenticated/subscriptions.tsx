@@ -337,60 +337,61 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
         {onShowList && <Button variant="outline" onClick={onShowList}><ListIcon className="size-4 mr-2" />List view</Button>}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Portfolio Rail */}
-        <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto pr-1">
-          <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
-            <button
-              onClick={() => setSiblingTab("active")}
-              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${siblingTab === "active" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
-            >Active</button>
-            <button
-              onClick={() => setSiblingTab("pending")}
-              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${siblingTab === "pending" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
-            >Pending</button>
-          </div>
-          {(() => {
-            const filtered = siblings.filter((s) => siblingTab === "active" ? s.status === "active" : s.status !== "active");
-            const rank = (s: Sub) => s.status === "active" ? 0 : s.status === "pending_renewal" ? 1 : 2;
-            const sorted = [...filtered].sort((a, b) => rank(a) - rank(b));
-            return sorted.map((s) => {
-            const isActive = s.id === sub.id;
-            const sClient = orgs.find((o) => o.id === s.client_org_id)?.name ?? "—";
-            return (
-              <button
-                key={s.id}
-                onClick={() => !isActive && onSaved(s)}
-                className={
-                  isActive
-                    ? "w-full text-left p-5 rounded-3xl bg-primary text-primary-foreground shadow-xl relative overflow-hidden"
-                    : "w-full text-left p-5 rounded-2xl bg-card border border-border hover:border-foreground/20 transition-colors"
-                }
-              >
-                {isActive && <div className="absolute -top-8 -right-8 w-32 h-32 bg-primary-foreground/5 rounded-full blur-2xl" />}
-                <div className="relative">
-                  <h4 className={`font-bold text-sm leading-snug line-clamp-2 ${isActive ? "" : "text-foreground"}`}>{s.plan_name}</h4>
-                  <p className={`text-[11px] mt-1 truncate ${isActive ? "opacity-80" : "text-muted-foreground"}`}>{sClient}</p>
-                  <div className="mt-3 flex justify-between items-end">
-                    <span className={`text-sm font-medium ${isActive ? "opacity-90" : "text-muted-foreground"}`}>{formatGBP(s.cost)}</span>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? "opacity-60" : "text-muted-foreground"}`}>{cycleLabel(s.billing_cycle)}</span>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    <span className={`text-[9px] px-2 py-0.5 rounded-md font-semibold uppercase tracking-wider ${isActive ? "bg-primary-foreground/10 border border-primary-foreground/10" : "bg-muted text-muted-foreground"}`}>
+        <aside className="lg:col-span-3 flex flex-col gap-6">
+          <section className="bg-card rounded-2xl border border-border/60 shadow-soft flex flex-col overflow-hidden lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)]">
+            <div className="p-4 border-b border-border/60 space-y-3">
+              <h2 className="text-[11px] font-bold tracking-widest text-muted-foreground uppercase flex items-center gap-2">
+                <FolderOpen className="size-3.5" /> Subscriptions
+              </h2>
+              <Tabs value={siblingTab} onValueChange={(v) => setSiblingTab(v as "active" | "pending")}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="active" className="flex-1 text-xs">Active ({siblings.filter((s) => s.status === "active").length})</TabsTrigger>
+                  <TabsTrigger value="pending" className="flex-1 text-xs">Pending ({siblings.filter((s) => s.status !== "active").length})</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {(() => {
+              const filtered = siblings.filter((s) => siblingTab === "active" ? s.status === "active" : s.status !== "active");
+              const rank = (s: Sub) => s.status === "active" ? 0 : s.status === "pending_renewal" ? 1 : 2;
+              const sorted = [...filtered].sort((a, b) => rank(a) - rank(b));
+              if (sorted.length === 0) return <p className="text-xs text-muted-foreground text-center py-6">No subscriptions.</p>;
+              return sorted.map((s) => {
+              const isActive = s.id === sub.id;
+              const sClient = orgs.find((o) => o.id === s.client_org_id)?.name ?? "—";
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => !isActive && onSaved(s)}
+                  className={`w-full text-left p-3 rounded-xl transition-colors ${
+                    isActive ? "bg-primary text-primary-foreground shadow-md" : "hover:bg-muted/60"
+                  }`}
+                >
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="font-semibold text-sm truncate">{s.plan_name}</span>
+                    <span className={`px-2 py-0.5 text-[9px] rounded-full uppercase font-bold tracking-wider shrink-0 border ${
+                      isActive ? "bg-white/15 text-primary-foreground border-white/20" : "bg-muted text-muted-foreground border-transparent"
+                    }`}>
                       {statusLabel(s.status)}
                     </span>
-                    {s.renewal_date && (
-                      <span className={`text-[9px] px-2 py-0.5 rounded-md font-semibold uppercase tracking-wider ${isActive ? "bg-primary-foreground/10 border border-primary-foreground/10" : "bg-muted text-muted-foreground"}`}>
-                        {formatDateUK(s.renewal_date)}
-                      </span>
-                    )}
                   </div>
-                </div>
-              </button>
-            );
-          });
-          })()}
+                  <p className={`text-[11px] mt-1 truncate ${isActive ? "opacity-80" : "text-muted-foreground"}`}>{sClient}</p>
+                  <div className={`mt-2 flex justify-between items-center text-[10px] ${isActive ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                    <span>{formatGBP(s.cost)} · {cycleLabel(s.billing_cycle)}</span>
+                    {s.renewal_date && <span>{formatDateUK(s.renewal_date)}</span>}
+                  </div>
+                </button>
+              );
+            });
+            })()}
+            </div>
+          </section>
         </aside>
+
+        <main className="lg:col-span-9">
+
 
         {/* Right: Main Detail Panel */}
         <div className="bg-card rounded-[2rem] border border-border shadow-sm overflow-hidden">
