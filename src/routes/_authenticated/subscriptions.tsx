@@ -339,8 +339,8 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Portfolio Rail */}
-        <aside className="lg:col-span-3 flex flex-col gap-6">
-          <section className="bg-card rounded-2xl border border-border/60 shadow-soft flex flex-col overflow-hidden lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6rem)]">
+        <aside className="lg:col-span-3 min-w-0 flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start">
+          <section className="bg-card rounded-2xl border border-border/60 shadow-soft flex flex-col overflow-hidden lg:max-h-[calc(100vh-6rem)]">
             <div className="p-4 border-b border-border/60 space-y-3">
               <h2 className="text-[11px] font-bold tracking-widest text-muted-foreground uppercase flex items-center gap-2">
                 <FolderOpen className="size-3.5" /> Subscriptions
@@ -369,8 +369,8 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
                     isActive ? "bg-primary text-primary-foreground shadow-md" : "hover:bg-muted/60"
                   }`}
                 >
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="font-semibold text-sm truncate">{s.plan_name}</span>
+                  <div className="flex justify-between items-start gap-2 min-w-0">
+                    <span className="font-semibold text-sm truncate min-w-0 flex-1">{s.plan_name}</span>
                     <span className={`px-2 py-0.5 text-[9px] rounded-full uppercase font-bold tracking-wider shrink-0 border ${
                       isActive ? "bg-white/15 text-primary-foreground border-white/20" : "bg-muted text-muted-foreground border-transparent"
                     }`}>
@@ -390,7 +390,7 @@ function SubDetail({ sub, editable, onBack, onSaved, onShowList }: { sub: Sub; e
           </section>
         </aside>
 
-        <main className="lg:col-span-9">
+        <main className="lg:col-span-9 min-w-0">
 
 
         {/* Right: Main Detail Panel */}
