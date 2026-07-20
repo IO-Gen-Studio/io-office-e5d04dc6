@@ -11,24 +11,36 @@ async function isSuperAdmin(userId: string) {
     .maybeSingle();
   return !!data;
 }
+async function isTenantMember(userId: string, tenantId: string) {
+  const { data } = await supabaseAdmin
+    .from("tenant_members")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return { isMember: !!data, role: data?.role ?? null };
+}
 async function isTenantAdmin(userId: string, tenantId: string) {
   if (await isSuperAdmin(userId)) return true;
-  const [{ data: role }, { data: mem }] = await Promise.all([
-    supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle(),
-    supabaseAdmin
-      .from("tenant_members")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle(),
-  ]);
-  return !!role || mem?.role === "owner";
+  const { isMember, role: memberRole } = await isTenantMember(userId, tenantId);
+  // Must actually be a member of the target tenant. Legacy global admin
+  // role only elevates when the caller is also a member of that tenant.
+  if (!isMember) return false;
+  if (memberRole === "owner") return true;
+  const { data: role } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
+  return !!role;
 }
+async function assertTenantMember(userId: string, tenantId: string) {
+  if (await isSuperAdmin(userId)) return;
+  const { isMember } = await isTenantMember(userId, tenantId);
+  if (!isMember) throw new Error("Forbidden: not a member of target organisation");
+}
+
 async function assertAdmin(userId: string) {
   if (await isSuperAdmin(userId)) return;
   const { data } = await supabaseAdmin
@@ -116,6 +128,7 @@ export const adminCreateUser = createServerFn({ method: "POST" })
       tenantId = (p?.active_tenant_id ?? undefined) as string | undefined;
     }
     if (tenantId) {
+      await assertTenantMember(context.userId, tenantId);
       await supabaseAdmin
         .from("tenant_members")
         .upsert(
@@ -124,6 +137,7 @@ export const adminCreateUser = createServerFn({ method: "POST" })
         );
       await supabaseAdmin.from("profiles").update({ active_tenant_id: tenantId }).eq("id", uid);
     }
+
     return { user_id: uid };
   });
 
