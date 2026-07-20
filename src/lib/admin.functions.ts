@@ -128,6 +128,7 @@ export const adminCreateUser = createServerFn({ method: "POST" })
       tenantId = (p?.active_tenant_id ?? undefined) as string | undefined;
     }
     if (tenantId) {
+      await assertTenantMember(context.userId, tenantId);
       await supabaseAdmin
         .from("tenant_members")
         .upsert(
@@ -136,6 +137,7 @@ export const adminCreateUser = createServerFn({ method: "POST" })
         );
       await supabaseAdmin.from("profiles").update({ active_tenant_id: tenantId }).eq("id", uid);
     }
+
     return { user_id: uid };
   });
 
