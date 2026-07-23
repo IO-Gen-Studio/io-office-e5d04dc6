@@ -213,7 +213,7 @@ function OutreachPage() {
                     {t.approved && <div className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider">Approved</div>}
                   </div>
                   {editable && (
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Edit template"
                         onClick={() => { setEditingTemplate(t); setTemplateDialogOpen(true); }}>
                         <Pencil className="size-3" />
