@@ -177,7 +177,7 @@ function UsersPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {p.last_sign_in_at
-                      ? new Date(p.last_sign_in_at).toLocaleString(undefined, {
+                      ? new Date(p.last_sign_in_at).toLocaleString("en-GB", {
                           dateStyle: "medium",
                           timeStyle: "short",
                         })
