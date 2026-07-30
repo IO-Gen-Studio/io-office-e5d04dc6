@@ -330,7 +330,7 @@ function Dashboard() {
                     <div className="min-w-0 flex-1">
                       <p className={`text-xs font-bold truncate ${s.title}`}>{p.title || "Untitled post"}</p>
                       <p className={`text-[10px] ${s.sub} truncate`}>
-                        {dt ? dt.toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "Unscheduled"} · {p.platform}
+                        {dt ? dt.toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "Unscheduled"} · {p.platform}
                       </p>
                     </div>
                   </Link>
@@ -359,7 +359,7 @@ function Dashboard() {
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground group-hover:text-primary truncate">{e.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {d.toLocaleDateString(undefined, { weekday: "short" })}, {time}
+                        {d.toLocaleDateString("en-GB", { weekday: "short" })}, {time}
                       </p>
                     </div>
                   </Link>

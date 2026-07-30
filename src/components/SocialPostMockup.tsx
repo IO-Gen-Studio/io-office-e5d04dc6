@@ -76,7 +76,7 @@ function LinkedInMockup({ plan }: { plan: MockupPlan }) {
         <Avatar />
         <div className="flex-1">
           <div className="text-sm font-semibold">Your Brand</div>
-          <div className="text-xs text-zinc-500">Company · {plan.scheduled_at ? new Date(plan.scheduled_at).toLocaleDateString() : "Now"} · 🌐</div>
+          <div className="text-xs text-zinc-500">Company · {plan.scheduled_at ? new Date(plan.scheduled_at).toLocaleDateString("en-GB") : "Now"} · 🌐</div>
         </div>
         <MoreHorizontal className="size-5 text-zinc-500" />
       </div>
@@ -98,7 +98,7 @@ function XMockup({ plan }: { plan: MockupPlan }) {
       <div className="flex items-start gap-3 p-3">
         <Avatar />
         <div className="flex-1">
-          <div className="text-sm"><span className="font-bold">Your Brand</span> <span className="text-zinc-300">@yourbrand · {plan.scheduled_at ? new Date(plan.scheduled_at).toLocaleDateString() : "now"}</span></div>
+          <div className="text-sm"><span className="font-bold">Your Brand</span> <span className="text-zinc-300">@yourbrand · {plan.scheduled_at ? new Date(plan.scheduled_at).toLocaleDateString("en-GB") : "now"}</span></div>
           <div className="text-[15px] mt-1 whitespace-pre-wrap">{plan.copy}</div>
           {plan.media_path && <div className="mt-2 rounded-xl overflow-hidden border border-zinc-800"><Media path={plan.media_path} className="w-full max-h-[420px] object-cover" /></div>}
           <div className="flex justify-between text-zinc-300 mt-3 max-w-[320px] text-xs">
@@ -117,7 +117,7 @@ function FacebookMockup({ plan }: { plan: MockupPlan }) {
         <Avatar />
         <div className="flex-1">
           <div className="text-sm font-semibold">Your Brand</div>
-          <div className="text-xs text-zinc-500">{plan.scheduled_at ? new Date(plan.scheduled_at).toLocaleString() : "Just now"} · 🌐</div>
+          <div className="text-xs text-zinc-500">{plan.scheduled_at ? new Date(plan.scheduled_at).toLocaleString("en-GB") : "Just now"} · 🌐</div>
         </div>
       </div>
       <div className="px-3 pb-2 text-[15px] whitespace-pre-wrap">{plan.copy}</div>
@@ -157,7 +157,7 @@ function YouTubeMockup({ plan }: { plan: MockupPlan }) {
         <Avatar />
         <div className="flex-1">
           <div className="font-semibold text-sm leading-tight">{plan.title || "Untitled video"}</div>
-          <div className="text-xs text-zinc-500">Your Brand · {plan.scheduled_at ? new Date(plan.scheduled_at).toLocaleDateString() : "Now"}</div>
+          <div className="text-xs text-zinc-500">Your Brand · {plan.scheduled_at ? new Date(plan.scheduled_at).toLocaleDateString("en-GB") : "Now"}</div>
           <div className="text-sm mt-2 whitespace-pre-wrap text-zinc-700">{plan.copy}</div>
         </div>
       </div>
@@ -195,9 +195,9 @@ function EventbriteMockup({ plan }: { plan: MockupPlan }) {
       <div className="p-4 space-y-3">
         {eventDate && (
           <div className="text-xs font-semibold uppercase tracking-wide text-[#d1410c]">
-            {eventDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+            {eventDate.toLocaleDateString("en-GB", { weekday: "short", month: "short", day: "numeric" })}
             {" · "}
-            {eventDate.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+            {eventDate.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit" })}
           </div>
         )}
         <div className="text-lg font-bold leading-tight">{plan.title || "Untitled event"}</div>

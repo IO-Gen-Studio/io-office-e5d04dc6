@@ -276,7 +276,7 @@ function PostCard({
           <div className="min-w-0 flex-1">
             <div className="text-xs font-semibold truncate">{theme.handle}</div>
             <div className="text-[10px] text-muted-foreground truncate">
-              {plan.scheduled_at ? new Date(plan.scheduled_at).toLocaleDateString() : "Unscheduled"} · {platformLabel(plan.platform)}
+              {plan.scheduled_at ? new Date(plan.scheduled_at).toLocaleDateString("en-GB") : "Unscheduled"} · {platformLabel(plan.platform)}
             </div>
           </div>
         </div>
