@@ -311,6 +311,7 @@ export function CostBreakdown({
         "Final Cost": finalCost,
         "Investment": inv,
         "Profit": finalCost - inv,
+        "Invoiced": i.invoiced ? "Yes" : "No",
       };
     });
     rows.push({
@@ -320,7 +321,9 @@ export function CostBreakdown({
       "Final Cost": totals.final,
       "Investment": totals.supplier,
       "Profit": totals.final - totals.supplier,
+      "Invoiced": `${items.filter((i) => i.invoiced).length}/${items.length}`,
     });
+
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Cost breakdown");
