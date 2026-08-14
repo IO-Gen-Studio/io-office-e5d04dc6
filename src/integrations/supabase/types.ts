@@ -368,6 +368,7 @@ export type Database = {
           description: string
           final_cost: number
           id: string
+          invoiced: boolean
           item_no: string | null
           position: number
           quantity: number
@@ -379,6 +380,7 @@ export type Database = {
           description?: string
           final_cost?: number
           id?: string
+          invoiced?: boolean
           item_no?: string | null
           position?: number
           quantity?: number
@@ -390,6 +392,7 @@ export type Database = {
           description?: string
           final_cost?: number
           id?: string
+          invoiced?: boolean
           item_no?: string | null
           position?: number
           quantity?: number
@@ -448,6 +451,7 @@ export type Database = {
           id: string
           is_current: boolean
           label: string | null
+          notes: string | null
           parent_id: string
           parent_type: string
           tenant_id: string
@@ -459,6 +463,7 @@ export type Database = {
           id?: string
           is_current?: boolean
           label?: string | null
+          notes?: string | null
           parent_id: string
           parent_type: string
           tenant_id?: string
@@ -470,6 +475,7 @@ export type Database = {
           id?: string
           is_current?: boolean
           label?: string | null
+          notes?: string | null
           parent_id?: string
           parent_type?: string
           tenant_id?: string

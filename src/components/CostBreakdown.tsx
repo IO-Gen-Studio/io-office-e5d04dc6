@@ -3,10 +3,12 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { formatGBP } from "@/lib/format";
-import { Plus, Trash2, GitBranch, Upload, Download, Pencil, FileSpreadsheet, Check } from "lucide-react";
+import { Plus, Trash2, GitBranch, Upload, Download, Pencil, FileSpreadsheet, Check, StickyNote } from "lucide-react";
 import { useRef } from "react";
 import { toast } from "sonner";
 
@@ -18,6 +20,7 @@ type Version = {
   parent_id: string;
   version: number;
   label: string | null;
+  notes: string | null;
   is_current: boolean;
   created_at: string;
 };
@@ -31,6 +34,7 @@ type Item = {
   quantity: number;
   final_cost: number;
   supplier_cost: number;
+  invoiced: boolean;
 };
 
 export function CostBreakdown({
@@ -43,10 +47,14 @@ export function CostBreakdown({
 }) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  const [prevItems, setPrevItems] = useState<Item[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [itemsLoadedFor, setItemsLoadedFor] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [notesDraft, setNotesDraft] = useState("");
+  const [notesOpen, setNotesOpen] = useState(false);
+
 
   const loadVersions = async () => {
     setLoading(true);
@@ -74,6 +82,29 @@ export function CostBreakdown({
     else { setItems([]); setItemsLoadedFor(null); }
   }, [activeId]);
 
+  // Load the previous version's items so we can highlight what changed.
+  useEffect(() => {
+    const act = versions.find((v) => v.id === activeId);
+    if (!act) { setPrevItems(null); return; }
+    const prev = versions.filter((v) => v.version < act.version).sort((a, b) => b.version - a.version)[0];
+    if (!prev) { setPrevItems(null); return; }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase.from("cost_items").select("*").eq("version_id", prev.id).order("position");
+      if (!cancelled) setPrevItems((data ?? []) as Item[]);
+    })();
+    return () => { cancelled = true; };
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [activeId, versions]);
+
+  useEffect(() => {
+    const act = versions.find((v) => v.id === activeId);
+    setNotesDraft(act?.notes ?? "");
+    setNotesOpen(false);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [activeId, versions]);
+
+
   const totals = useMemo(() => {
     return items.reduce(
       (a, i) => ({
@@ -94,6 +125,36 @@ export function CostBreakdown({
   }, [totals.final, totals.supplier, itemsLoadedFor, activeId]);
 
   const active = versions.find((v) => v.id === activeId) ?? null;
+  const prevVersion = useMemo(() => {
+    if (!active) return null;
+    return versions.filter((v) => v.version < active.version).sort((a, b) => b.version - a.version)[0] ?? null;
+  }, [versions, active]);
+
+  const prevByKey = useMemo(() => {
+    const m = new Map<string, Item>();
+    (prevItems ?? []).forEach((i, idx) => {
+      m.set((i.item_no?.trim() || `#${idx}`).toLowerCase(), i);
+    });
+    return m;
+  }, [prevItems]);
+
+  const matchPrev = (i: Item, idx: number): Item | undefined => {
+    if (!prevItems) return undefined;
+    return prevByKey.get((i.item_no?.trim() || `#${idx}`).toLowerCase()) ?? prevItems[idx];
+  };
+
+  const changedCls = (changed: boolean) =>
+    changed ? "bg-amber-100/70 dark:bg-amber-500/15 rounded-sm" : "";
+
+  const saveNotes = async () => {
+    if (!active) return;
+    const { error } = await supabase.from("cost_versions").update({ notes: notesDraft || null }).eq("id", active.id);
+    if (error) return toast.error(error.message);
+    setVersions((prev) => prev.map((v) => v.id === active.id ? { ...v, notes: notesDraft || null } : v));
+    toast.success("Notes saved");
+  };
+
+
 
   const createVersion = async (cloneFromActive: boolean) => {
     const nextNum = versions.length === 0 ? 1 : Math.max(...versions.map((v) => v.version)) + 1;
@@ -250,6 +311,7 @@ export function CostBreakdown({
         "Final Cost": finalCost,
         "Investment": inv,
         "Profit": finalCost - inv,
+        "Invoiced": i.invoiced ? "Yes" : "No",
       };
     });
     rows.push({
@@ -259,7 +321,9 @@ export function CostBreakdown({
       "Final Cost": totals.final,
       "Investment": totals.supplier,
       "Profit": totals.final - totals.supplier,
+      "Invoiced": `${items.filter((i) => i.invoiced).length}/${items.length}`,
     });
+
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Cost breakdown");
@@ -306,6 +370,11 @@ export function CostBreakdown({
             <FileSpreadsheet className="size-4 mr-1" />Export XLSX
           </Button>
         )}
+        {active && (
+          <Button size="sm" variant={notesOpen ? "default" : "outline"} onClick={() => setNotesOpen((v) => !v)}>
+            <StickyNote className="size-4 mr-1" />Notes{active.notes ? " •" : ""}
+          </Button>
+        )}
         {editable && (
           <div className="ml-auto flex gap-2">
             <Button size="sm" variant="outline" onClick={() => createVersion(true)} disabled={versions.length === 0}>Duplicate version</Button>
@@ -317,10 +386,37 @@ export function CostBreakdown({
         )}
       </div>
 
+      {active && notesOpen && (
+        <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Notes for v{active.version}</p>
+          {editable ? (
+            <>
+              <Textarea
+                rows={3}
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                placeholder="What changed in this version, assumptions, approvals…"
+              />
+              <div className="flex justify-end">
+                <Button size="sm" onClick={saveNotes}>Save notes</Button>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm whitespace-pre-wrap">{active.notes || "No notes."}</p>
+          )}
+        </div>
+      )}
+
       {!active ? (
         <p className="text-sm text-muted-foreground">Create a version to start adding items.</p>
       ) : (
         <div className="overflow-auto rounded-md border">
+          {prevVersion && (
+            <div className="flex items-center gap-2 border-b bg-muted/20 px-2 py-1.5 text-xs text-muted-foreground">
+              <span className="inline-block size-3 rounded-sm bg-amber-100/70 dark:bg-amber-500/15 border" />
+              Highlighted cells differ from v{prevVersion.version}
+            </div>
+          )}
           <table className="w-full text-sm">
             <thead className="bg-muted/30 border-b">
               <tr>
@@ -330,36 +426,66 @@ export function CostBreakdown({
                 <th className="text-right p-2 w-32">Final cost</th>
                 <th className="text-right p-2 w-32">Investment</th>
                 <th className="text-right p-2 w-32">Profit</th>
+                <th className="text-center p-2 w-24">Invoiced</th>
                 {editable && editMode && <th className="w-10" />}
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
-                <tr><td colSpan={editable && editMode ? 7 : 6} className="text-center text-muted-foreground py-6">No items yet.</td></tr>
-              ) : items.map((i) => {
+                <tr><td colSpan={editable && editMode ? 8 : 7} className="text-center text-muted-foreground py-6">No items yet.</td></tr>
+              ) : items.map((i, idx) => {
                 const lineFinal = Number(i.final_cost || 0);
                 const lineInv = Number(i.supplier_cost || 0);
                 const canEdit = editable && editMode;
+                const p = matchPrev(i, idx);
+                const isNew = !!prevItems && !p;
+                const diff = {
+                  desc: !!p && p.description !== i.description,
+                  qty: !!p && Number(p.quantity) !== Number(i.quantity),
+                  final: !!p && Number(p.final_cost) !== Number(i.final_cost),
+                  supplier: !!p && Number(p.supplier_cost) !== Number(i.supplier_cost),
+                };
                 return (
                   <tr key={i.id} className="border-b">
-                    <td className="p-1.5"><Input className="h-8" disabled={!canEdit} value={i.item_no ?? ""} onChange={(e) => updateItem(i.id, { item_no: e.target.value })} /></td>
-                    <td className="p-1.5"><Input className="h-8" disabled={!canEdit} value={i.description} onChange={(e) => updateItem(i.id, { description: e.target.value })} /></td>
-                    <td className="p-1.5"><Input className="h-8 text-right" type="number" disabled={!canEdit} value={i.quantity} onChange={(e) => updateItem(i.id, { quantity: Number(e.target.value) || 0 })} /></td>
-                    <td className="p-1.5"><Input className="h-8 text-right" type="number" disabled={!canEdit} value={i.final_cost} onChange={(e) => updateItem(i.id, { final_cost: Number(e.target.value) || 0 })} /></td>
-                    <td className="p-1.5"><Input className="h-8 text-right" type="number" disabled={!canEdit} value={i.supplier_cost} onChange={(e) => updateItem(i.id, { supplier_cost: Number(e.target.value) || 0 })} /></td>
+                    <td className={`p-1.5 ${changedCls(isNew)}`} title={isNew ? `New line since v${prevVersion?.version}` : undefined}>
+                      <Input className="h-8" disabled={!canEdit} value={i.item_no ?? ""} onChange={(e) => updateItem(i.id, { item_no: e.target.value })} />
+                    </td>
+                    <td className={`p-1.5 ${changedCls(diff.desc)}`} title={diff.desc ? `Was: ${p?.description || "—"}` : undefined}>
+                      <Input className="h-8" disabled={!canEdit} value={i.description} onChange={(e) => updateItem(i.id, { description: e.target.value })} />
+                    </td>
+                    <td className={`p-1.5 ${changedCls(diff.qty)}`} title={diff.qty ? `Was: ${p?.quantity}` : undefined}>
+                      <Input className="h-8 text-right" type="number" disabled={!canEdit} value={i.quantity} onChange={(e) => updateItem(i.id, { quantity: Number(e.target.value) || 0 })} />
+                    </td>
+                    <td className={`p-1.5 ${changedCls(diff.final)}`} title={diff.final ? `Was: ${formatGBP(Number(p?.final_cost))}` : undefined}>
+                      <Input className="h-8 text-right" type="number" disabled={!canEdit} value={i.final_cost} onChange={(e) => updateItem(i.id, { final_cost: Number(e.target.value) || 0 })} />
+                    </td>
+                    <td className={`p-1.5 ${changedCls(diff.supplier)}`} title={diff.supplier ? `Was: ${formatGBP(Number(p?.supplier_cost))}` : undefined}>
+                      <Input className="h-8 text-right" type="number" disabled={!canEdit} value={i.supplier_cost} onChange={(e) => updateItem(i.id, { supplier_cost: Number(e.target.value) || 0 })} />
+                    </td>
                     <td className="p-2 text-right tabular-nums">{formatGBP(lineFinal - lineInv)}</td>
+                    <td className="p-2 text-center">
+                      <Checkbox
+                        checked={!!i.invoiced}
+                        disabled={!editable}
+                        aria-label="Invoiced"
+                        onCheckedChange={(c) => updateItem(i.id, { invoiced: c === true })}
+                      />
+                    </td>
                     {editable && editMode && <td className="p-1.5 text-right"><Button variant="ghost" size="icon" aria-label="Delete cost item" onClick={() => removeItem(i.id)}><Trash2 className="size-4" /></Button></td>}
                   </tr>
                 );
               })}
             </tbody>
+
             <tfoot className="bg-muted/20">
               <tr className="font-medium">
                 <td colSpan={3} className="p-2 text-right">Totals</td>
                 <td className="p-2 text-right tabular-nums">{formatGBP(totals.final)}</td>
                 <td className="p-2 text-right tabular-nums">{formatGBP(totals.supplier)}</td>
                 <td className="p-2 text-right tabular-nums">{formatGBP(totals.final - totals.supplier)}</td>
+                <td className="p-2 text-center text-xs text-muted-foreground">{items.filter((i) => i.invoiced).length}/{items.length}</td>
                 {editable && editMode && <td />}
+
               </tr>
             </tfoot>
           </table>
