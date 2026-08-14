@@ -82,6 +82,29 @@ export function CostBreakdown({
     else { setItems([]); setItemsLoadedFor(null); }
   }, [activeId]);
 
+  // Load the previous version's items so we can highlight what changed.
+  useEffect(() => {
+    const act = versions.find((v) => v.id === activeId);
+    if (!act) { setPrevItems(null); return; }
+    const prev = versions.filter((v) => v.version < act.version).sort((a, b) => b.version - a.version)[0];
+    if (!prev) { setPrevItems(null); return; }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase.from("cost_items").select("*").eq("version_id", prev.id).order("position");
+      if (!cancelled) setPrevItems((data ?? []) as Item[]);
+    })();
+    return () => { cancelled = true; };
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [activeId, versions]);
+
+  useEffect(() => {
+    const act = versions.find((v) => v.id === activeId);
+    setNotesDraft(act?.notes ?? "");
+    setNotesOpen(false);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [activeId, versions]);
+
+
   const totals = useMemo(() => {
     return items.reduce(
       (a, i) => ({
