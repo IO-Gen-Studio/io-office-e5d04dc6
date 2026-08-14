@@ -480,7 +480,9 @@ export function CostBreakdown({
                 <td className="p-2 text-right tabular-nums">{formatGBP(totals.final)}</td>
                 <td className="p-2 text-right tabular-nums">{formatGBP(totals.supplier)}</td>
                 <td className="p-2 text-right tabular-nums">{formatGBP(totals.final - totals.supplier)}</td>
+                <td className="p-2 text-center text-xs text-muted-foreground">{items.filter((i) => i.invoiced).length}/{items.length}</td>
                 {editable && editMode && <td />}
+
               </tr>
             </tfoot>
           </table>
