@@ -125,6 +125,36 @@ export function CostBreakdown({
   }, [totals.final, totals.supplier, itemsLoadedFor, activeId]);
 
   const active = versions.find((v) => v.id === activeId) ?? null;
+  const prevVersion = useMemo(() => {
+    if (!active) return null;
+    return versions.filter((v) => v.version < active.version).sort((a, b) => b.version - a.version)[0] ?? null;
+  }, [versions, active]);
+
+  const prevByKey = useMemo(() => {
+    const m = new Map<string, Item>();
+    (prevItems ?? []).forEach((i, idx) => {
+      m.set((i.item_no?.trim() || `#${idx}`).toLowerCase(), i);
+    });
+    return m;
+  }, [prevItems]);
+
+  const matchPrev = (i: Item, idx: number): Item | undefined => {
+    if (!prevItems) return undefined;
+    return prevByKey.get((i.item_no?.trim() || `#${idx}`).toLowerCase()) ?? prevItems[idx];
+  };
+
+  const changedCls = (changed: boolean) =>
+    changed ? "bg-amber-100/70 dark:bg-amber-500/15 rounded-sm" : "";
+
+  const saveNotes = async () => {
+    if (!active) return;
+    const { error } = await supabase.from("cost_versions").update({ notes: notesDraft || null }).eq("id", active.id);
+    if (error) return toast.error(error.message);
+    setVersions((prev) => prev.map((v) => v.id === active.id ? { ...v, notes: notesDraft || null } : v));
+    toast.success("Notes saved");
+  };
+
+
 
   const createVersion = async (cloneFromActive: boolean) => {
     const nextNum = versions.length === 0 ? 1 : Math.max(...versions.map((v) => v.version)) + 1;
