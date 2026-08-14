@@ -367,6 +367,11 @@ export function CostBreakdown({
             <FileSpreadsheet className="size-4 mr-1" />Export XLSX
           </Button>
         )}
+        {active && (
+          <Button size="sm" variant={notesOpen ? "default" : "outline"} onClick={() => setNotesOpen((v) => !v)}>
+            <StickyNote className="size-4 mr-1" />Notes{active.notes ? " •" : ""}
+          </Button>
+        )}
         {editable && (
           <div className="ml-auto flex gap-2">
             <Button size="sm" variant="outline" onClick={() => createVersion(true)} disabled={versions.length === 0}>Duplicate version</Button>
@@ -378,10 +383,37 @@ export function CostBreakdown({
         )}
       </div>
 
+      {active && notesOpen && (
+        <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Notes for v{active.version}</p>
+          {editable ? (
+            <>
+              <Textarea
+                rows={3}
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                placeholder="What changed in this version, assumptions, approvals…"
+              />
+              <div className="flex justify-end">
+                <Button size="sm" onClick={saveNotes}>Save notes</Button>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm whitespace-pre-wrap">{active.notes || "No notes."}</p>
+          )}
+        </div>
+      )}
+
       {!active ? (
         <p className="text-sm text-muted-foreground">Create a version to start adding items.</p>
       ) : (
         <div className="overflow-auto rounded-md border">
+          {prevVersion && (
+            <div className="flex items-center gap-2 border-b bg-muted/20 px-2 py-1.5 text-xs text-muted-foreground">
+              <span className="inline-block size-3 rounded-sm bg-amber-100/70 dark:bg-amber-500/15 border" />
+              Highlighted cells differ from v{prevVersion.version}
+            </div>
+          )}
           <table className="w-full text-sm">
             <thead className="bg-muted/30 border-b">
               <tr>
@@ -391,29 +423,57 @@ export function CostBreakdown({
                 <th className="text-right p-2 w-32">Final cost</th>
                 <th className="text-right p-2 w-32">Investment</th>
                 <th className="text-right p-2 w-32">Profit</th>
+                <th className="text-center p-2 w-24">Invoiced</th>
                 {editable && editMode && <th className="w-10" />}
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
-                <tr><td colSpan={editable && editMode ? 7 : 6} className="text-center text-muted-foreground py-6">No items yet.</td></tr>
-              ) : items.map((i) => {
+                <tr><td colSpan={editable && editMode ? 8 : 7} className="text-center text-muted-foreground py-6">No items yet.</td></tr>
+              ) : items.map((i, idx) => {
                 const lineFinal = Number(i.final_cost || 0);
                 const lineInv = Number(i.supplier_cost || 0);
                 const canEdit = editable && editMode;
+                const p = matchPrev(i, idx);
+                const isNew = !!prevItems && !p;
+                const diff = {
+                  desc: !!p && p.description !== i.description,
+                  qty: !!p && Number(p.quantity) !== Number(i.quantity),
+                  final: !!p && Number(p.final_cost) !== Number(i.final_cost),
+                  supplier: !!p && Number(p.supplier_cost) !== Number(i.supplier_cost),
+                };
                 return (
                   <tr key={i.id} className="border-b">
-                    <td className="p-1.5"><Input className="h-8" disabled={!canEdit} value={i.item_no ?? ""} onChange={(e) => updateItem(i.id, { item_no: e.target.value })} /></td>
-                    <td className="p-1.5"><Input className="h-8" disabled={!canEdit} value={i.description} onChange={(e) => updateItem(i.id, { description: e.target.value })} /></td>
-                    <td className="p-1.5"><Input className="h-8 text-right" type="number" disabled={!canEdit} value={i.quantity} onChange={(e) => updateItem(i.id, { quantity: Number(e.target.value) || 0 })} /></td>
-                    <td className="p-1.5"><Input className="h-8 text-right" type="number" disabled={!canEdit} value={i.final_cost} onChange={(e) => updateItem(i.id, { final_cost: Number(e.target.value) || 0 })} /></td>
-                    <td className="p-1.5"><Input className="h-8 text-right" type="number" disabled={!canEdit} value={i.supplier_cost} onChange={(e) => updateItem(i.id, { supplier_cost: Number(e.target.value) || 0 })} /></td>
+                    <td className={`p-1.5 ${changedCls(isNew)}`} title={isNew ? `New line since v${prevVersion?.version}` : undefined}>
+                      <Input className="h-8" disabled={!canEdit} value={i.item_no ?? ""} onChange={(e) => updateItem(i.id, { item_no: e.target.value })} />
+                    </td>
+                    <td className={`p-1.5 ${changedCls(diff.desc)}`} title={diff.desc ? `Was: ${p?.description || "—"}` : undefined}>
+                      <Input className="h-8" disabled={!canEdit} value={i.description} onChange={(e) => updateItem(i.id, { description: e.target.value })} />
+                    </td>
+                    <td className={`p-1.5 ${changedCls(diff.qty)}`} title={diff.qty ? `Was: ${p?.quantity}` : undefined}>
+                      <Input className="h-8 text-right" type="number" disabled={!canEdit} value={i.quantity} onChange={(e) => updateItem(i.id, { quantity: Number(e.target.value) || 0 })} />
+                    </td>
+                    <td className={`p-1.5 ${changedCls(diff.final)}`} title={diff.final ? `Was: ${formatGBP(Number(p?.final_cost))}` : undefined}>
+                      <Input className="h-8 text-right" type="number" disabled={!canEdit} value={i.final_cost} onChange={(e) => updateItem(i.id, { final_cost: Number(e.target.value) || 0 })} />
+                    </td>
+                    <td className={`p-1.5 ${changedCls(diff.supplier)}`} title={diff.supplier ? `Was: ${formatGBP(Number(p?.supplier_cost))}` : undefined}>
+                      <Input className="h-8 text-right" type="number" disabled={!canEdit} value={i.supplier_cost} onChange={(e) => updateItem(i.id, { supplier_cost: Number(e.target.value) || 0 })} />
+                    </td>
                     <td className="p-2 text-right tabular-nums">{formatGBP(lineFinal - lineInv)}</td>
+                    <td className="p-2 text-center">
+                      <Checkbox
+                        checked={!!i.invoiced}
+                        disabled={!editable}
+                        aria-label="Invoiced"
+                        onCheckedChange={(c) => updateItem(i.id, { invoiced: c === true })}
+                      />
+                    </td>
                     {editable && editMode && <td className="p-1.5 text-right"><Button variant="ghost" size="icon" aria-label="Delete cost item" onClick={() => removeItem(i.id)}><Trash2 className="size-4" /></Button></td>}
                   </tr>
                 );
               })}
             </tbody>
+
             <tfoot className="bg-muted/20">
               <tr className="font-medium">
                 <td colSpan={3} className="p-2 text-right">Totals</td>
