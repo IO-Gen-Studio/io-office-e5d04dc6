@@ -3,10 +3,12 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { formatGBP } from "@/lib/format";
-import { Plus, Trash2, GitBranch, Upload, Download, Pencil, FileSpreadsheet, Check } from "lucide-react";
+import { Plus, Trash2, GitBranch, Upload, Download, Pencil, FileSpreadsheet, Check, StickyNote } from "lucide-react";
 import { useRef } from "react";
 import { toast } from "sonner";
 
@@ -18,6 +20,7 @@ type Version = {
   parent_id: string;
   version: number;
   label: string | null;
+  notes: string | null;
   is_current: boolean;
   created_at: string;
 };
@@ -31,6 +34,7 @@ type Item = {
   quantity: number;
   final_cost: number;
   supplier_cost: number;
+  invoiced: boolean;
 };
 
 export function CostBreakdown({
@@ -43,10 +47,14 @@ export function CostBreakdown({
 }) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  const [prevItems, setPrevItems] = useState<Item[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [itemsLoadedFor, setItemsLoadedFor] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [notesDraft, setNotesDraft] = useState("");
+  const [notesOpen, setNotesOpen] = useState(false);
+
 
   const loadVersions = async () => {
     setLoading(true);
